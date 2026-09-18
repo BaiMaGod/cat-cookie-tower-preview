@@ -88,23 +88,27 @@ const matChip = new THREE.MeshStandardMaterial({ color: 0x5a7740, roughness: 0.9
 const matPillar = new THREE.MeshStandardMaterial({ color: 0xffdca1, roughness: 0.72 });
 const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xf6b96f, roughness: 0.78 });
 
-const pillar = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 90, 28),
-  matPillar,
-);
-pillar.position.y = -38;
-pillar.receiveShadow = true;
-towerRoot.add(pillar);
+// The center pillar is a recycled visual segment that follows the camera vertically.
+  // This avoids a finite-height pillar disappearing in deep runs (100+ layers).
+  const pillarVisual = new THREE.Group();
+  towerRoot.add(pillarVisual);
 
-for (let y = 5; y > -80; y -= 2.9) {
-  const stripe = new THREE.Mesh(
-    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.012, 0.035, 6, 32),
-    matPillarStripe,
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 70, 28),
+    matPillar,
   );
-  stripe.rotation.x = Math.PI / 2;
-  stripe.position.y = y;
-  towerRoot.add(stripe);
-}
+  pillar.receiveShadow = true;
+  pillarVisual.add(pillar);
+
+  for (let y = -34.8; y <= 34.8; y += 2.9) {
+    const stripe = new THREE.Mesh(
+      new THREE.TorusGeometry(CONFIG.pillarRadius + 0.012, 0.035, 6, 32),
+      matPillarStripe,
+    );
+    stripe.rotation.x = Math.PI / 2;
+    stripe.position.y = y;
+    pillarVisual.add(stripe);
+  }
 
 // Soft decorative background cookies. They intentionally do not participate in gameplay.
 const decoGroup = new THREE.Group();
@@ -803,6 +807,9 @@ function updateCamera(dt) {
   camera.position.x = mobile ? 0.18 : 0.24;
   camera.position.z = mobile ? 8.25 : 8.85;
   camera.lookAt(0, cameraFocusY - 0.12, CONFIG.catZ - 0.06);
+
+  // Keep the center pillar visually continuous no matter how deep the run goes.
+  pillarVisual.position.y = cameraFocusY - 1.5;
 
   // Decorative crumbs drift with progress so the background never looks static.
   decoGroup.position.y = cameraFocusY * 0.72;
