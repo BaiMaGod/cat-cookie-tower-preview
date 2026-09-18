@@ -40,6 +40,8 @@ const CONFIG = Object.freeze({
   keepBehind: 5,
   cameraFollow: 6.1,
   breakthroughCombo: 5,
+  minGapSlices: 6,
+  smashBounceVelocity: 4.15,
 });
 
 const scene = new THREE.Scene();
@@ -273,17 +275,36 @@ function arcType(layerData, angle) {
   return 'safe';
 }
 
+function enforceVisiblePrimaryGap(data) {
+  const requestedSlices = Math.ceil(data.gaps[0].width / SLICE);
+  const gapSlices = Math.max(CONFIG.minGapSlices, requestedSlices);
+  const centerIndex = Math.floor(normalizeAngle(data.primaryAngle) / SLICE);
+  const firstIndex = centerIndex - Math.floor((gapSlices - 1) / 2);
+  const start = normalizeAngle(firstIndex * SLICE);
+  const width = gapSlices * SLICE;
+
+  data.gaps[0] = { start, width };
+  data.primaryAngle = normalizeAngle(start + width / 2);
+  data.width = width;
+  return gapSlices;
+}
+
 function makeLayer(index) {
   const data = generator.create(index, rules.jumps <= 2);
+  const requiredGapSlices = enforceVisiblePrimaryGap(data);
   const group = new THREE.Group();
   group.position.y = -index * CONFIG.layerGap;
   towerRoot.add(group);
 
   const segments = [];
+  let renderedGapSlices = 0;
   for (let i = 0; i < CONFIG.sliceCount; i++) {
     const angle = i * SLICE + SLICE / 2;
     const type = arcType(data, angle);
-    if (type === 'gap') continue;
+    if (type === 'gap') {
+      renderedGapSlices += 1;
+      continue;
+    }
     const material = type === 'hazard' ? matHazard : (i % 2 ? matCookie : matCookieAlt);
     const seg = new THREE.Mesh(wedgeGeo, material);
     seg.rotation.y = angle;
@@ -299,6 +320,14 @@ function makeLayer(index) {
       spike.rotation.y = angle;
       group.add(spike);
     }
+  }
+
+  // This should be impossible after snapping, but keep a runtime guard so a
+  // fully closed cookie layer can never silently enter gameplay.
+  if (renderedGapSlices < requiredGapSlices) {
+    console.error('Invalid cookie layer: visible gap missing', { index, renderedGapSlices, requiredGapSlices, data });
+    towerRoot.remove(group);
+    return makeLayer(index);
   }
 
   // Sparse chocolate chips make the whole disk read as one edible cookie rather than a plain platform.
@@ -532,14 +561,14 @@ function resolveLandingSmash() {
   if (!layer || layer.eaten) {
     smashLayer = null;
     state = 'bouncing';
-    vy = -4.2;
+    vy = CONFIG.smashBounceVelocity;
     return;
   }
 
+  // The cat has visibly landed. Now the cookie breaks at the SAME instant
+  // the cat launches upward, making the smash readable instead of looking
+  // like another pass-through.
   layer.eaten = true;
-
-  // The smashed cookie still counts as one eaten layer (+1), but it does not
-  // continue the previous combo and cannot immediately arm another smash.
   rules.passLayer();
   spawnPlusOne();
   spawnEatFragments(layer);
@@ -547,8 +576,8 @@ function resolveLandingSmash() {
   layers.delete(layer.index);
   rules.land();
 
-  pulse = Math.min(0.32, pulse + 0.18);
-  squash = 0.55;
+  pulse = Math.min(0.36, pulse + 0.22);
+  squash = 0.75;
   hud.combo.textContent = '砸碎！';
   hud.combo.classList.remove('show');
   void hud.combo.offsetWidth;
@@ -556,8 +585,10 @@ function resolveLandingSmash() {
   updateHUD();
 
   smashLayer = null;
+  smashTimer = 0;
   state = 'bouncing';
-  vy = -4.6;
+  vy = CONFIG.smashBounceVelocity;
+  cat.root.position.y = smashBaseY + 0.035;
 }
 
 function hitHazard() {
@@ -710,17 +741,7 @@ function updateCat(dt) {
   } else if (state === 'smashCharge' && rules.alive) {
     smashTimer -= dt;
     cat.root.position.y = smashBaseY;
-    if (smashTimer <= 0) {
-      state = 'smashBounce';
-      smashTimer = 0;
-    }
-  } else if (state === 'smashBounce' && rules.alive) {
-    smashTimer += dt;
-    const duration = 0.26;
-    const u = Math.min(smashTimer / duration, 1);
-    // A small, readable reward bounce before the cookie breaks.
-    cat.root.position.y = smashBaseY + Math.sin(u * Math.PI) * 0.38;
-    if (u >= 1) resolveLandingSmash();
+    if (smashTimer <= 0) resolveLandingSmash();
   } else if (state === 'bouncing' && rules.alive) {
     const prevY = cat.root.position.y;
     vy += CONFIG.gravity * dt;
