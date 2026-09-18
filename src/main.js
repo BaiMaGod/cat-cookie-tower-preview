@@ -364,29 +364,9 @@ function layerTopY(layer) {
 
 function platformStatus(layer) {
   const angle = localAngleUnderCat();
-  if (layer.catchArc && angleInArc(angle, layer.catchArc.start, layer.catchArc.width)) return 'safe';
   if (layer.data.gaps.some((g) => angleInArc(angle, g.start, g.width))) return 'gap';
   if (layer.data.hazards.some((h) => angleInArc(angle, h.start, h.width))) return 'hazard';
   return 'safe';
-}
-
-function addSafetyCatchPatch(layer) {
-  const center = localAngleUnderCat();
-  const halfSlices = 3;
-  const width = SLICE * (halfSlices * 2 + 1);
-  layer.catchArc = {
-    start: normalizeAngle(center - width / 2),
-    width,
-  };
-
-  for (let i = -halfSlices; i <= halfSlices; i++) {
-    const angle = normalizeAngle(center + i * SLICE);
-    const seg = new THREE.Mesh(wedgeGeo, i % 2 ? matCookie : matCookieAlt);
-    seg.rotation.y = angle;
-    seg.position.y = 0.012;
-    seg.receiveShadow = true;
-    layer.group.add(seg);
-  }
 }
 
 function showCombo(n) {
@@ -413,8 +393,10 @@ let vy = 0;
 let landingTimer = 0;
 let previousBottom = 0;
 let firstInput = false;
-let breakthroughReady = false;
-let mustLandAfterBreakthrough = false;
+let smashReady = false;
+let smashLayer = null;
+let smashTimer = 0;
+let smashBaseY = 0;
 
 function updateHUD() {
   hud.depth.textContent = String(rules.depth);
@@ -517,7 +499,7 @@ function beginEat(layer) {
   if (layer.eaten) return;
   layer.eaten = true;
   rules.passLayer();
-  if (rules.combo === CONFIG.breakthroughCombo) breakthroughReady = true;
+  if (rules.combo === CONFIG.breakthroughCombo) smashReady = true;
   pulse = Math.min(0.22, pulse + 0.10);
   spawnPlusOne();
   showCombo(rules.combo);
@@ -528,30 +510,54 @@ function beginEat(layer) {
   layers.delete(layer.index);
 }
 
-function beginBreakthrough(layer) {
-  if (layer.eaten || !breakthroughReady) return;
+function startLandingSmash(layer) {
+  if (layer.eaten || !smashReady) return;
+
+  smashReady = false;
+  smashLayer = layer;
+  smashBaseY = layerTopY(layer) + getCatRadius();
+  cat.root.position.y = smashBaseY;
+  vy = 0;
+  state = 'smashCharge';
+  smashTimer = 0.10;
+  squash = 1.25;
+
+  // The 5-layer falling streak ends as soon as the reward landing starts.
+  rules.land();
+  updateHUD();
+}
+
+function resolveLandingSmash() {
+  const layer = smashLayer;
+  if (!layer || layer.eaten) {
+    smashLayer = null;
+    state = 'bouncing';
+    vy = -4.2;
+    return;
+  }
 
   layer.eaten = true;
+
+  // The smashed cookie still counts as one eaten layer (+1), but it does not
+  // continue the previous combo and cannot immediately arm another smash.
   rules.passLayer();
   spawnPlusOne();
   spawnEatFragments(layer);
   towerRoot.remove(layer.group);
   layers.delete(layer.index);
-
-  // Breakthrough is a one-shot reward. Consuming it ends this combo,
-  // and the very next layer must terminate the fall.
-  breakthroughReady = false;
-  mustLandAfterBreakthrough = true;
   rules.land();
-  pulse = Math.min(0.30, pulse + 0.16);
-  vy = Math.min(vy, -6.2);
-  squash = 0.7;
 
-  hud.combo.textContent = '击穿！';
+  pulse = Math.min(0.32, pulse + 0.18);
+  squash = 0.55;
+  hud.combo.textContent = '砸碎！';
   hud.combo.classList.remove('show');
   void hud.combo.offsetWidth;
   hud.combo.classList.add('show');
   updateHUD();
+
+  smashLayer = null;
+  state = 'bouncing';
+  vy = -4.6;
 }
 
 function hitHazard() {
@@ -594,8 +600,10 @@ function resetGame() {
   cat.visual.scale.setScalar(targetCatScale());
   cat.head.rotation.set(0, 0, 0);
   deadShown = false;
-  breakthroughReady = false;
-  mustLandAfterBreakthrough = false;
+  smashReady = false;
+  smashLayer = null;
+  smashTimer = 0;
+  smashBaseY = 0;
   pulse = 0;
   squash = 0;
   state = 'landed';
@@ -667,39 +675,23 @@ function collisionStep(prevY, currentY) {
     const top = layerTopY(layer);
     if (!(prevBottomY >= top && currBottomY <= top)) continue;
 
-    let status = platformStatus(layer);
+    const status = platformStatus(layer);
 
-    // Once 5-chain is armed, the very next crossed layer consumes the one-shot
-    // breakthrough, regardless of whether that point is safe, hazard, or gap.
-    if (breakthroughReady) {
-      beginBreakthrough(layer);
-      continue;
-    }
-
-    // A breakthrough must end the falling streak. The next layer catches the cat.
-    // Hazard still kills normally; an accidental gap is temporarily filled so
-    // the cat cannot start another endless free-fall chain immediately.
-    if (mustLandAfterBreakthrough) {
-      mustLandAfterBreakthrough = false;
-      if (status === 'hazard') {
-        cat.root.position.y = top + radius;
-        hitHazard();
-        return;
-      }
-      if (status === 'gap') {
-        addSafetyCatchPatch(layer);
-        status = 'safe';
-      }
-      cat.root.position.y = top + radius;
-      landOn(layer);
-      return;
-    }
-
+    // Gaps are still gaps. A ready smash waits until the cat truly lands.
     if (status === 'gap') {
       beginEat(layer);
       // Keep falling. The loop may find a second platform in the same frame.
       continue;
     }
+
+    // After a 5-layer chain, the next REAL platform contact triggers the reward.
+    // It overrides both normal and hazard regions: land first, bounce visibly,
+    // then shatter this whole layer.
+    if (smashReady) {
+      startLandingSmash(layer);
+      return;
+    }
+
     if (status === 'hazard') {
       cat.root.position.y = top + radius;
       hitHazard();
@@ -715,6 +707,20 @@ function updateCat(dt) {
   if (state === 'landed') {
     landingTimer -= dt;
     if (landingTimer <= 0) consumeBounce();
+  } else if (state === 'smashCharge' && rules.alive) {
+    smashTimer -= dt;
+    cat.root.position.y = smashBaseY;
+    if (smashTimer <= 0) {
+      state = 'smashBounce';
+      smashTimer = 0;
+    }
+  } else if (state === 'smashBounce' && rules.alive) {
+    smashTimer += dt;
+    const duration = 0.26;
+    const u = Math.min(smashTimer / duration, 1);
+    // A small, readable reward bounce before the cookie breaks.
+    cat.root.position.y = smashBaseY + Math.sin(u * Math.PI) * 0.38;
+    if (u >= 1) resolveLandingSmash();
   } else if (state === 'bouncing' && rules.alive) {
     const prevY = cat.root.position.y;
     vy += CONFIG.gravity * dt;
