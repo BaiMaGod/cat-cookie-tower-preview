@@ -28,8 +28,8 @@ const CONFIG = Object.freeze({
   platformRadius: 3.25,
   platformThickness: 0.22,
   pillarRadius: 0.78,
-  catRadius: 0.46,
-  catRadiusAtMax: 0.56,
+  catRadius: 0.40,
+  catRadiusAtMax: 0.49,
   catZ: 2.78,
   gravity: -10.2,
   jumpVelocity: 5.25,
@@ -39,11 +39,12 @@ const CONFIG = Object.freeze({
   aheadLayers: 18,
   keepBehind: 5,
   cameraFollow: 6.1,
+  breakthroughCombo: 5,
 });
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf8e5bd);
-scene.fog = new THREE.Fog(0xf8e5bd, 14, 34);
+scene.background = new THREE.Color(0xf2f0da);
+scene.fog = new THREE.Fog(0xf2f0da, 14, 34);
 
 const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 120);
 camera.position.set(0.35, 5.0, 8.9);
@@ -76,12 +77,12 @@ scene.add(fill);
 const towerRoot = new THREE.Group();
 scene.add(towerRoot);
 
-const matCookie = new THREE.MeshStandardMaterial({ color: 0xd99a4b, roughness: 0.9, metalness: 0.0 });
-const matCookieAlt = new THREE.MeshStandardMaterial({ color: 0xe8ae5e, roughness: 0.92 });
-const matCookieEdge = new THREE.MeshStandardMaterial({ color: 0xc67d35, roughness: 1.0 });
-const matHazard = new THREE.MeshStandardMaterial({ color: 0x593125, roughness: 0.92, emissive: 0x4d1309, emissiveIntensity: 0.32 });
-const matHazardTop = new THREE.MeshStandardMaterial({ color: 0x7b3323, roughness: 0.84, emissive: 0x721d0b, emissiveIntensity: 0.42 });
-const matChip = new THREE.MeshStandardMaterial({ color: 0x6c3b24, roughness: 0.98 });
+const matCookie = new THREE.MeshStandardMaterial({ color: 0xb7d98f, roughness: 0.9, metalness: 0.0 });
+const matCookieAlt = new THREE.MeshStandardMaterial({ color: 0xc9e8a8, roughness: 0.92 });
+const matCookieEdge = new THREE.MeshStandardMaterial({ color: 0x8fbb65, roughness: 1.0 });
+const matHazard = new THREE.MeshStandardMaterial({ color: 0xb32020, roughness: 0.88, emissive: 0x6a0505, emissiveIntensity: 0.42 });
+const matHazardTop = new THREE.MeshStandardMaterial({ color: 0xf04b45, roughness: 0.76, emissive: 0x9b0f0f, emissiveIntensity: 0.55 });
+const matChip = new THREE.MeshStandardMaterial({ color: 0x5a7740, roughness: 0.98 });
 const matPillar = new THREE.MeshStandardMaterial({ color: 0xffdca1, roughness: 0.72 });
 const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xf6b96f, roughness: 0.78 });
 
@@ -107,7 +108,7 @@ for (let y = 5; y > -80; y -= 2.9) {
 const decoGroup = new THREE.Group();
 scene.add(decoGroup);
 const decoGeo = new THREE.SphereGeometry(0.12, 8, 6);
-const decoMat = new THREE.MeshStandardMaterial({ color: 0xf4bd72, roughness: 0.9 });
+const decoMat = new THREE.MeshStandardMaterial({ color: 0xdce8b6, roughness: 0.9 });
 for (let i = 0; i < 28; i++) {
   const m = new THREE.Mesh(decoGeo, decoMat);
   const a = (i / 28) * TAU;
@@ -324,7 +325,7 @@ function makeLayer(index) {
 }
 
 function ensureLayers() {
-  const start = Math.max(0, rules.depth - 1);
+  const start = Math.max(0, rules.depth);
   const end = rules.depth + CONFIG.aheadLayers;
   for (let i = start; i <= end; i++) {
     if (!layers.has(i)) makeLayer(i);
@@ -354,7 +355,7 @@ function getCatRadius() {
 
 function targetCatScale() {
   const t = THREE.MathUtils.clamp(rules.jumps / CONFIG.maxJumps, 0, 1);
-  return THREE.MathUtils.lerp(0.78, 1.18, t);
+  return THREE.MathUtils.lerp(0.68, 0.98, t);
 }
 
 function layerTopY(layer) {
@@ -504,6 +505,14 @@ function beginEat(layer) {
   layers.delete(layer.index);
 }
 
+function beginBreakthrough(layer) {
+  if (layer.eaten) return;
+  beginEat(layer);
+  pulse = Math.min(0.28, pulse + 0.14);
+  vy = Math.min(vy, -6.2);
+  squash = 0.6;
+}
+
 function hitHazard() {
   if (!rules.alive) return;
   rules.hitHazard();
@@ -619,6 +628,10 @@ function collisionStep(prevY, currentY) {
     if (status === 'gap') {
       beginEat(layer);
       // Keep falling. The loop may find a second platform in the same frame.
+      continue;
+    }
+    if (rules.combo >= CONFIG.breakthroughCombo) {
+      beginBreakthrough(layer);
       continue;
     }
     if (status === 'hazard') {
