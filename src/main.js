@@ -393,6 +393,7 @@ let vy = 0;
 let landingTimer = 0;
 let previousBottom = 0;
 let firstInput = false;
+let breakthroughReady = false;
 
 function updateHUD() {
   hud.depth.textContent = String(rules.depth);
@@ -495,6 +496,7 @@ function beginEat(layer) {
   if (layer.eaten) return;
   layer.eaten = true;
   rules.passLayer();
+  if (rules.combo >= CONFIG.breakthroughCombo) breakthroughReady = true;
   pulse = Math.min(0.22, pulse + 0.10);
   spawnPlusOne();
   showCombo(rules.combo);
@@ -506,11 +508,27 @@ function beginEat(layer) {
 }
 
 function beginBreakthrough(layer) {
-  if (layer.eaten) return;
-  beginEat(layer);
-  pulse = Math.min(0.28, pulse + 0.14);
+  if (layer.eaten || !breakthroughReady) return;
+
+  layer.eaten = true;
+  rules.passLayer();
+  spawnPlusOne();
+  spawnEatFragments(layer);
+  towerRoot.remove(layer.group);
+  layers.delete(layer.index);
+
+  // Breakthrough is a one-shot reward. Consuming it immediately ends this combo.
+  breakthroughReady = false;
+  rules.land();
+  pulse = Math.min(0.30, pulse + 0.16);
   vy = Math.min(vy, -6.2);
-  squash = 0.6;
+  squash = 0.7;
+
+  hud.combo.textContent = '击穿！';
+  hud.combo.classList.remove('show');
+  void hud.combo.offsetWidth;
+  hud.combo.classList.add('show');
+  updateHUD();
 }
 
 function hitHazard() {
@@ -553,6 +571,7 @@ function resetGame() {
   cat.visual.scale.setScalar(targetCatScale());
   cat.head.rotation.set(0, 0, 0);
   deadShown = false;
+  breakthroughReady = false;
   pulse = 0;
   squash = 0;
   state = 'landed';
@@ -630,7 +649,7 @@ function collisionStep(prevY, currentY) {
       // Keep falling. The loop may find a second platform in the same frame.
       continue;
     }
-    if (rules.combo >= CONFIG.breakthroughCombo) {
+    if (breakthroughReady) {
       beginBreakthrough(layer);
       continue;
     }
@@ -703,14 +722,13 @@ function updateCat(dt) {
 
 let cameraFocusY = 0;
 function updateCamera(dt) {
-  const depthY = -rules.depth * CONFIG.layerGap;
-  const targetY = depthY - 0.48;
-  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-CONFIG.cameraFollow * dt));
-  camera.position.y = cameraFocusY + 4.95;
+  const targetY = cat.root.position.y - 0.15;
+  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-10.0 * dt));
+  camera.position.y = cameraFocusY + 4.35;
   const mobile = innerWidth < 720;
   camera.position.x = mobile ? 0.18 : 0.24;
   camera.position.z = mobile ? 8.25 : 8.85;
-  camera.lookAt(0, cameraFocusY - 0.18, CONFIG.catZ - 0.06);
+  camera.lookAt(0, cameraFocusY - 0.12, CONFIG.catZ - 0.06);
 
   // Decorative crumbs drift with progress so the background never looks static.
   decoGroup.position.y = cameraFocusY * 0.72;
