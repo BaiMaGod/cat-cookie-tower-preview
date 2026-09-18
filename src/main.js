@@ -30,7 +30,7 @@ const CONFIG = Object.freeze({
   pillarRadius: 0.78,
   catRadius: 0.46,
   catRadiusAtMax: 0.56,
-  catZ: 2.45,
+  catZ: 2.78,
   gravity: -10.2,
   jumpVelocity: 5.25,
   landingPause: 0.08,
@@ -45,8 +45,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf8e5bd);
 scene.fog = new THREE.Fog(0xf8e5bd, 14, 34);
 
-const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 120);
-camera.position.set(6.2, 5.2, 7.8);
+const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 120);
+camera.position.set(0.35, 5.0, 8.9);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -414,6 +414,7 @@ function consumeBounce() {
 }
 
 function landOn(layer) {
+  cleanupLayersAbove(layer.index);
   cat.root.position.y = layerTopY(layer) + getCatRadius();
   vy = 0;
   rules.land();
@@ -427,6 +428,19 @@ function getMouthWorldPosition() {
   const p = new THREE.Vector3();
   cat.mouth.getWorldPosition(p);
   return p;
+}
+
+function cleanupLayersAbove(landedIndex) {
+  const stale = [...layers.values()]
+    .filter((l) => l.index < landedIndex && !l.eaten)
+    .sort((a, b) => a.index - b.index);
+
+  for (const layer of stale) {
+    layer.eaten = true;
+    spawnEatFragments(layer);
+    towerRoot.remove(layer.group);
+    layers.delete(layer.index);
+  }
 }
 
 function spawnEatFragments(layer) {
@@ -677,12 +691,13 @@ function updateCat(dt) {
 let cameraFocusY = 0;
 function updateCamera(dt) {
   const depthY = -rules.depth * CONFIG.layerGap;
-  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, depthY - 0.72, 1 - Math.exp(-CONFIG.cameraFollow * dt));
-  camera.position.y = cameraFocusY + 5.3;
+  const targetY = depthY - 0.48;
+  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-CONFIG.cameraFollow * dt));
+  camera.position.y = cameraFocusY + 4.95;
   const mobile = innerWidth < 720;
-  camera.position.x = mobile ? 5.3 : 5.9;
-  camera.position.z = mobile ? 6.6 : 7.1;
-  camera.lookAt(0, cameraFocusY - 0.7, 0.38);
+  camera.position.x = mobile ? 0.18 : 0.24;
+  camera.position.z = mobile ? 8.25 : 8.85;
+  camera.lookAt(0, cameraFocusY - 0.18, CONFIG.catZ - 0.06);
 
   // Decorative crumbs drift with progress so the background never looks static.
   decoGroup.position.y = cameraFocusY * 0.72;
