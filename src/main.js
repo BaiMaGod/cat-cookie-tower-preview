@@ -26,9 +26,9 @@ const hud = {
 const CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
-  layerGap: 2.04,
-  platformRadius: 3.72,
-  platformThickness: 0.40,
+  layerGap: 1.88,
+  platformRadius: 3.62,
+  platformThickness: 0.50,
   pillarRadius: 0.92,
   catRadius: 0.31,
   catRadiusAtMax: 0.37,
@@ -37,12 +37,12 @@ const CONFIG = Object.freeze({
   jumpVelocity: 5.25,
   landingPause: 0.08,
   dragTurnsPerScreen: 240 * Math.PI / 180,
-  sliceCount: 24,
+  sliceCount: 18,
   aheadLayers: 14,
   keepBehind: 5,
   cameraFollow: 6.1,
   breakthroughCombo: 5,
-  minGapSlices: 3,
+  minGapSlices: 2,
   smashBounceVelocity: 4.15,
 });
 
@@ -85,46 +85,46 @@ const towerRoot = new THREE.Group();
 scene.add(towerRoot);
 
 const matCookie = new THREE.MeshPhysicalMaterial({
-  color: 0x45ef78,
-  roughness: 0.08,
+  color: 0x86f2a7,
+  roughness: 0.16,
   metalness: 0,
   clearcoat: 1,
   clearcoatRoughness: 0.04,
-  transmission: 0.08,
+  transmission: 0.18,
   transparent: true,
-  opacity: 0.93,
+  opacity: 0.97,
   thickness: 0.65,
   ior: 1.36,
-  emissive: 0x0d8a35,
-  emissiveIntensity: 0.16,
+  emissive: 0x184d2a,
+  emissiveIntensity: 0.05,
 });
 const matCookieAlt = new THREE.MeshPhysicalMaterial({
-  color: 0x8cffaa,
-  roughness: 0.10,
+  color: 0xb8f8c9,
+  roughness: 0.18,
   metalness: 0,
   clearcoat: 1,
   clearcoatRoughness: 0.05,
-  transmission: 0.06,
+  transmission: 0.16,
   transparent: true,
-  opacity: 0.94,
+  opacity: 0.97,
   thickness: 0.62,
   ior: 1.36,
-  emissive: 0x1c8f43,
-  emissiveIntensity: 0.10,
+  emissive: 0x225b33,
+  emissiveIntensity: 0.04,
 });
 const matHazard = new THREE.MeshPhysicalMaterial({
-  color: 0xd80a61,
+  color: 0xd82d77,
   roughness: 0.07,
   metalness: 0,
   clearcoat: 1,
   clearcoatRoughness: 0.035,
-  transmission: 0.05,
+  transmission: 0.12,
   transparent: true,
-  opacity: 0.95,
+  opacity: 0.98,
   thickness: 0.66,
   ior: 1.38,
-  emissive: 0x720024,
-  emissiveIntensity: 0.28,
+  emissive: 0x65102e,
+  emissiveIntensity: 0.16,
 });
 const matHazardTop = new THREE.MeshStandardMaterial({
   color: 0xff679b,
@@ -292,7 +292,7 @@ const wedgeGeo = createAnnularWedgeGeometry(
   CONFIG.pillarRadius + 0.10,
   CONFIG.platformRadius,
   CONFIG.platformThickness,
-  SLICE * 0.88,
+  SLICE * 0.92,
   4,
 );
 const chipGeo = new THREE.SphereGeometry(0.075, 9, 7);
@@ -339,7 +339,7 @@ function makeLayer(index) {
     const material = type === 'hazard' ? matHazard : (i % 2 ? matCookie : matCookieAlt);
     const seg = new THREE.Mesh(wedgeGeo, material);
     seg.rotation.y = angle;
-    seg.castShadow = index < 10;
+    seg.castShadow = false;
     seg.receiveShadow = true;
     group.add(seg);
     segments.push(seg);
@@ -861,10 +861,10 @@ let cameraFocusY = 0;
 function updateCamera(dt) {
   const targetY = cat.root.position.y - 0.10;
   cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-9.0 * dt));
-  camera.position.y = cameraFocusY + 4.55;
-  camera.position.x = 0.72;
-  camera.position.z = 21.0;
-  camera.lookAt(0, cameraFocusY - 0.40, 0);
+  camera.position.y = cameraFocusY + 4.35;
+  camera.position.x = 0.34;
+  camera.position.z = 11.8;
+  camera.lookAt(0, cameraFocusY - 0.30, 0);
 
   // Recycle the decorative pillar so the candy column never ends.
   pillarVisual.position.y = cameraFocusY - 1.3;
