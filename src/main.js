@@ -158,54 +158,12 @@ const dangerSpriteMat = new THREE.SpriteMaterial({
   depthWrite: false,
 });
 
-// Production pillar: use the generated candy-cat pillar artwork directly.
-// A narrower 3D core sits behind it only for depth/occlusion; the visible design
-// comes from the approved asset, not from procedural placeholder decorations.
+// The visible pillar is rendered as a DOM art layer behind the transparent
+// WebGL canvas. This avoids texture/depth issues that previously left only a
+// plain white 3D core on screen, while platforms still occlude it naturally.
 const pillarVisual = new THREE.Group();
 scene.add(pillarVisual);
-
-const pillarTexture = loadArtTexture('./assets/pillar-candy-cat.webp');
-pillarTexture.magFilter = THREE.LinearFilter;
-pillarTexture.minFilter = THREE.LinearMipmapLinearFilter;
-pillarTexture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
-
-const pillarCoreMat = new THREE.MeshPhysicalMaterial({
-  color: 0xfff1dc,
-  roughness: 0.34,
-  metalness: 0,
-  clearcoat: 0.44,
-  clearcoatRoughness: 0.18,
-});
-const pillarCore = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.80, CONFIG.pillarRadius * 0.80, 86, 48),
-  pillarCoreMat,
-);
-pillarCore.position.y = -22;
-pillarCore.receiveShadow = true;
-pillarCore.castShadow = false;
-pillarVisual.add(pillarCore);
-
-const pillarArtMat = new THREE.MeshBasicMaterial({
-  map: pillarTexture,
-  transparent: true,
-  alphaTest: 0.025,
-  depthTest: true,
-  depthWrite: false,
-  side: THREE.DoubleSide,
-  toneMapped: false,
-});
-
-const PILLAR_ART_W = 2.04;
-const PILLAR_ART_H = 3.69;
-const PILLAR_ART_STEP = 3.62;
-const pillarArtGeo = new THREE.PlaneGeometry(PILLAR_ART_W, PILLAR_ART_H);
-
-for (let y = -38; y <= 38; y += PILLAR_ART_STEP) {
-  const panel = new THREE.Mesh(pillarArtGeo, pillarArtMat);
-  panel.position.set(0, y, CONFIG.pillarRadius * 0.82);
-  panel.renderOrder = 3;
-  pillarVisual.add(panel);
-}
+const pillarArtDom = document.getElementById('pillarArtLayer');
 
 // Background decoration now comes from the actual jelly-paradise artwork.
 const decoGroup = new THREE.Group();
@@ -860,8 +818,13 @@ function updateCamera(dt) {
   camera.position.z = 10.55;
   camera.lookAt(0, cameraFocusY - 0.32, 1.02);
 
-  // Recycle the decorative pillar so the candy column never ends.
+  // Scroll the exact pillar artwork with the world while keeping it centered.
   pillarVisual.position.y = cameraFocusY - 0.45;
+  if (pillarArtDom) {
+    const pxPerWorldUnit = gameEl.clientHeight / 12.6;
+    const offset = ((cameraFocusY * pxPerWorldUnit) % 352 + 352) % 352;
+    pillarArtDom.style.backgroundPosition = `center ${offset.toFixed(1)}px`;
+  }
   decoGroup.position.y = cameraFocusY * 0.40;
 }
 
