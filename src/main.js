@@ -45,23 +45,24 @@ const CONFIG = Object.freeze({
 });
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf2f0da);
-scene.fog = new THREE.Fog(0xf2f0da, 14, 34);
+scene.background = null;
+scene.fog = new THREE.Fog(0xdff7ff, 16, 36);
 
 const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 120);
 camera.position.set(0.35, 5.0, 8.9);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.03;
+renderer.toneMappingExposure = 1.08;
+renderer.setClearColor(0xffffff, 0);
 gameEl.appendChild(renderer.domElement);
 
-const hemi = new THREE.HemisphereLight(0xfff7df, 0xb89b79, 2.7);
+const hemi = new THREE.HemisphereLight(0xf8ffff, 0x88b7c9, 2.9);
 scene.add(hemi);
 const key = new THREE.DirectionalLight(0xffffff, 3.2);
 key.position.set(6, 10, 8);
@@ -72,49 +73,125 @@ key.shadow.camera.right = 8;
 key.shadow.camera.top = 8;
 key.shadow.camera.bottom = -8;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xffb88f, 1.05);
+const fill = new THREE.DirectionalLight(0xffc5e3, 1.15);
 fill.position.set(-7, 3, -5);
 scene.add(fill);
 
 const towerRoot = new THREE.Group();
 scene.add(towerRoot);
 
-const matCookie = new THREE.MeshStandardMaterial({ color: 0xb7d98f, roughness: 0.9, metalness: 0.0 });
-const matCookieAlt = new THREE.MeshStandardMaterial({ color: 0xc9e8a8, roughness: 0.92 });
-const matCookieEdge = new THREE.MeshStandardMaterial({ color: 0x8fbb65, roughness: 1.0 });
-const matHazard = new THREE.MeshStandardMaterial({ color: 0xb32020, roughness: 0.88, emissive: 0x6a0505, emissiveIntensity: 0.42 });
-const matHazardTop = new THREE.MeshStandardMaterial({ color: 0xf04b45, roughness: 0.76, emissive: 0x9b0f0f, emissiveIntensity: 0.55 });
-const matChip = new THREE.MeshStandardMaterial({ color: 0x5a7740, roughness: 0.98 });
-const matPillar = new THREE.MeshStandardMaterial({ color: 0xffdca1, roughness: 0.72 });
-const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xf6b96f, roughness: 0.78 });
+const matCookie = new THREE.MeshPhysicalMaterial({
+  color: 0x66e890,
+  roughness: 0.16,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.08,
+  transmission: 0.22,
+  transparent: true,
+  opacity: 0.88,
+  thickness: 0.42,
+  ior: 1.34,
+  emissive: 0x103d1d,
+  emissiveIntensity: 0.08,
+});
+const matCookieAlt = new THREE.MeshPhysicalMaterial({
+  color: 0x9af6b5,
+  roughness: 0.20,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.10,
+  transmission: 0.18,
+  transparent: true,
+  opacity: 0.90,
+  thickness: 0.40,
+  ior: 1.34,
+});
+const matCookieEdge = new THREE.MeshStandardMaterial({ color: 0x45c86f, roughness: 0.38 });
+const matHazard = new THREE.MeshPhysicalMaterial({
+  color: 0xd22c78,
+  roughness: 0.15,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.06,
+  transmission: 0.14,
+  transparent: true,
+  opacity: 0.92,
+  thickness: 0.44,
+  ior: 1.37,
+  emissive: 0x5b082b,
+  emissiveIntensity: 0.22,
+});
+const matHazardTop = new THREE.MeshPhysicalMaterial({
+  color: 0xff5b9b,
+  roughness: 0.12,
+  clearcoat: 1,
+  clearcoatRoughness: 0.04,
+  emissive: 0x8b103d,
+  emissiveIntensity: 0.32,
+});
+const matChip = new THREE.MeshPhysicalMaterial({
+  color: 0xcaffda,
+  roughness: 0.08,
+  transmission: 0.30,
+  transparent: true,
+  opacity: 0.72,
+  clearcoat: 1,
+});
+const matPillar = new THREE.MeshStandardMaterial({ color: 0xfff0cf, roughness: 0.42 });
+const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xff8fbc, roughness: 0.30, emissive: 0x4a0d2a, emissiveIntensity: 0.05 });
+const matPillarCream = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.34 });
+const matPaw = new THREE.MeshStandardMaterial({ color: 0xff78ad, roughness: 0.24, emissive: 0x5a1230, emissiveIntensity: 0.06 });
 
 // The center pillar is a recycled visual segment that follows the camera vertically.
-  // This avoids a finite-height pillar disappearing in deep runs (100+ layers).
-  const pillarVisual = new THREE.Group();
-  towerRoot.add(pillarVisual);
+const pillarVisual = new THREE.Group();
+towerRoot.add(pillarVisual);
 
-  const pillar = new THREE.Mesh(
-    new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 70, 28),
-    matPillar,
+const pillar = new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 70, 36),
+  matPillar,
+);
+pillar.receiveShadow = true;
+pillarVisual.add(pillar);
+
+for (let y = -34.8, n = 0; y <= 34.8; y += 2.9, n++) {
+  const stripe = new THREE.Mesh(
+    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.014, 0.048, 8, 40),
+    n % 2 ? matPillarStripe : matPillarCream,
   );
-  pillar.receiveShadow = true;
-  pillarVisual.add(pillar);
+  stripe.rotation.x = Math.PI / 2;
+  stripe.position.y = y;
+  pillarVisual.add(stripe);
+}
 
-  for (let y = -34.8; y <= 34.8; y += 2.9) {
-    const stripe = new THREE.Mesh(
-      new THREE.TorusGeometry(CONFIG.pillarRadius + 0.012, 0.035, 6, 32),
-      matPillarStripe,
-    );
-    stripe.rotation.x = Math.PI / 2;
-    stripe.position.y = y;
-    pillarVisual.add(stripe);
+const pawPadGeo = new THREE.SphereGeometry(0.115, 14, 10);
+const pawToeGeo = new THREE.SphereGeometry(0.055, 12, 8);
+function addPawOrnament(y, angle) {
+  const g = new THREE.Group();
+  g.position.y = y;
+  g.rotation.y = angle;
+  const pad = new THREE.Mesh(pawPadGeo, matPaw);
+  pad.scale.set(1.25, 0.92, 0.34);
+  pad.position.set(0, 0, CONFIG.pillarRadius + 0.045);
+  g.add(pad);
+  const toeOffsets = [[-0.12,0.12],[-0.04,0.18],[0.05,0.18],[0.13,0.11]];
+  for (const [x, yy] of toeOffsets) {
+    const toe = new THREE.Mesh(pawToeGeo, matPaw);
+    toe.scale.set(1, 0.9, 0.32);
+    toe.position.set(x, yy, CONFIG.pillarRadius + 0.05);
+    g.add(toe);
   }
+  pillarVisual.add(g);
+}
+for (let y = -31; y <= 31; y += 5.8) {
+  addPawOrnament(y, 0);
+  addPawOrnament(y + 2.9, Math.PI);
+}
 
-// Soft decorative background cookies. They intentionally do not participate in gameplay.
+// Soft decorative jelly bubbles. They intentionally do not participate in gameplay.
 const decoGroup = new THREE.Group();
 scene.add(decoGroup);
 const decoGeo = new THREE.SphereGeometry(0.12, 8, 6);
-const decoMat = new THREE.MeshStandardMaterial({ color: 0xdce8b6, roughness: 0.9 });
+const decoMat = new THREE.MeshPhysicalMaterial({ color: 0xa5ffd0, roughness: 0.08, transmission: 0.25, transparent: true, opacity: 0.55, clearcoat: 1 });
 for (let i = 0; i < 28; i++) {
   const m = new THREE.Mesh(decoGeo, decoMat);
   const a = (i / 28) * TAU;
@@ -124,6 +201,21 @@ for (let i = 0; i < 28; i++) {
   decoGroup.add(m);
 }
 
+const textureLoader = new THREE.TextureLoader();
+function loadGameTexture(url) {
+  const tex = textureLoader.load(url);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const catTextures = {
+  idle: loadGameTexture('./assets/cat-idle.webp'),
+  fall: loadGameTexture('./assets/cat-fall.webp'),
+  eat: loadGameTexture('./assets/cat-eat.webp'),
+  squash: loadGameTexture('./assets/cat-squash.webp'),
+  fail: loadGameTexture('./assets/cat-fail.webp'),
+};
+const jellyBurstTexture = loadGameTexture('./assets/jelly-burst.webp');
+
 function createCat() {
   const root = new THREE.Group();
   root.position.set(0, 0, CONFIG.catZ);
@@ -132,121 +224,46 @@ function createCat() {
   const visual = new THREE.Group();
   root.add(visual);
 
-  const fur = new THREE.MeshStandardMaterial({ color: 0xf8b65f, roughness: 0.78 });
-  const cream = new THREE.MeshStandardMaterial({ color: 0xffe7b6, roughness: 0.86 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x49362d, roughness: 0.92 });
-  const pink = new THREE.MeshStandardMaterial({ color: 0xef8f8f, roughness: 0.82 });
-  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x5b2729, roughness: 0.95 });
+  const spriteMat = new THREE.SpriteMaterial({
+    map: catTextures.idle,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(1.42, 1.42, 1);
+  sprite.position.y = 0.06;
+  sprite.renderOrder = 20;
+  visual.add(sprite);
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 26, 18), fur);
-  body.scale.set(1.12, 1.02, 1.0);
-  body.castShadow = true;
-  visual.add(body);
+  const mouthAnchor = new THREE.Object3D();
+  mouthAnchor.position.set(0, 0.20, 0.10);
+  root.add(mouthAnchor);
 
-  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.33, 20, 14), cream);
-  belly.position.set(0, -0.04, 0.36);
-  belly.scale.set(0.95, 1.08, 0.28);
-  visual.add(belly);
-
-  const head = new THREE.Group();
-  head.position.set(0, 0.42, 0.04);
-  visual.add(head);
-
-  const headBall = new THREE.Mesh(new THREE.SphereGeometry(0.37, 24, 16), fur);
-  headBall.scale.set(1.12, 0.95, 0.94);
-  headBall.castShadow = true;
-  head.add(headBall);
-
-  const earGeo = new THREE.ConeGeometry(0.16, 0.34, 3);
-  const leftEar = new THREE.Mesh(earGeo, fur);
-  const rightEar = new THREE.Mesh(earGeo, fur);
-  leftEar.position.set(-0.22, 0.28, 0.01);
-  rightEar.position.set(0.22, 0.28, 0.01);
-  leftEar.rotation.z = 0.16;
-  rightEar.rotation.z = -0.16;
-  head.add(leftEar, rightEar);
-
-  const innerEarGeo = new THREE.ConeGeometry(0.09, 0.18, 3);
-  const leftInnerEar = new THREE.Mesh(innerEarGeo, pink);
-  const rightInnerEar = new THREE.Mesh(innerEarGeo, pink);
-  leftInnerEar.position.set(-0.22, 0.24, 0.055);
-  rightInnerEar.position.set(0.22, 0.24, 0.055);
-  leftInnerEar.rotation.z = 0.16;
-  rightInnerEar.rotation.z = -0.16;
-  head.add(leftInnerEar, rightInnerEar);
-
-  const eyeGeo = new THREE.SphereGeometry(0.035, 10, 8);
-  const leftEye = new THREE.Mesh(eyeGeo, dark);
-  const rightEye = new THREE.Mesh(eyeGeo, dark);
-  leftEye.position.set(-0.13, 0.04, 0.325);
-  rightEye.position.set(0.13, 0.04, 0.325);
-  leftEye.scale.set(1, 1.3, 0.45);
-  rightEye.scale.set(1, 1.3, 0.45);
-  head.add(leftEye, rightEye);
-
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), pink);
-  nose.position.set(0, -0.035, 0.355);
-  nose.scale.set(1.15, 0.72, 0.5);
-  head.add(nose);
-
-  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 10), mouthMat);
-  mouth.position.set(0, -0.13, 0.35);
-  mouth.scale.set(0.72, 0.25, 0.28);
-  head.add(mouth);
-
-  const blushGeo = new THREE.SphereGeometry(0.06, 12, 8);
-  const blushMat = new THREE.MeshStandardMaterial({ color: 0xffb0a8, roughness: 0.9, transparent: true, opacity: 0.72 });
-  const leftBlush = new THREE.Mesh(blushGeo, blushMat);
-  const rightBlush = new THREE.Mesh(blushGeo, blushMat);
-  leftBlush.position.set(-0.2, -0.06, 0.30);
-  rightBlush.position.set(0.2, -0.06, 0.30);
-  leftBlush.scale.set(1.2, 0.6, 0.25);
-  rightBlush.scale.set(1.2, 0.6, 0.25);
-  head.add(leftBlush, rightBlush);
-
-  const whiskerMat = new THREE.MeshStandardMaterial({ color: 0x5f4d44, roughness: 0.95 });
-  const whiskerGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.26, 6);
-  for (const side of [-1, 1]) {
-    for (const oy of [-0.02, -0.08, -0.14]) {
-      const w = new THREE.Mesh(whiskerGeo, whiskerMat);
-      w.rotation.z = side * Math.PI / 2 + side * (0.10 + oy * 0.8);
-      w.rotation.x = Math.PI / 2;
-      w.position.set(0.13 * side, oy, 0.29);
-      head.add(w);
-    }
-  }
-
-  const suctionAura = new THREE.Mesh(
-    new THREE.TorusGeometry(0.13, 0.022, 8, 28),
-    new THREE.MeshBasicMaterial({ color: 0xfff0c5, transparent: true, opacity: 0.0, depthWrite: false }),
-  );
-  suctionAura.position.set(0, -0.13, 0.44);
-  suctionAura.rotation.x = Math.PI / 2;
-  head.add(suctionAura);
-
-  const pawGeo = new THREE.SphereGeometry(0.13, 14, 10);
-  for (const x of [-0.34, 0.34]) {
-    const paw = new THREE.Mesh(pawGeo, cream);
-    paw.position.set(x, -0.19, 0.28);
-    paw.scale.set(0.75, 0.78, 0.72);
-    visual.add(paw);
-  }
-
-  const tail = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.07, 8, 26, Math.PI * 1.3), fur);
-  tail.position.set(0.39, -0.09, -0.15);
-  tail.rotation.set(0.22, 0.55, -0.55);
-  visual.add(tail);
-
-  // Ground shadow that tracks the cat. It makes the squash/landing much easier to read.
   const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.42, 28),
-    new THREE.MeshBasicMaterial({ color: 0x80552f, transparent: true, opacity: 0.14, depthWrite: false }),
+    new THREE.CircleGeometry(0.40, 28),
+    new THREE.MeshBasicMaterial({ color: 0x4b6e68, transparent: true, opacity: 0.16, depthWrite: false }),
   );
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(0, -0.52, 0);
+  shadow.position.set(0, -0.47, 0);
   root.add(shadow);
 
-  return { root, visual, head, mouth, leftEye, rightEye, shadow, suctionAura, leftBlush, rightBlush, leftEar, rightEar, tail };
+  return {
+    root,
+    visual,
+    sprite,
+    mouthAnchor,
+    shadow,
+    currentTexture: 'idle',
+    eatTimer: 0,
+  };
+}
+
+function setCatTexture(name) {
+  if (cat.currentTexture === name) return;
+  cat.currentTexture = name;
+  cat.sprite.material.map = catTextures[name];
+  cat.sprite.material.needsUpdate = true;
 }
 
 const cat = createCat();
@@ -256,7 +273,7 @@ let generator = new LayerGenerator((Date.now() ^ 0xA11CE) >>> 0);
 const layers = new Map();
 const effects = [];
 
-// Shared wedge geometry. Each slice is a narrow cylinder sector; groups of sectors form a cookie disk.
+// Shared wedge geometry. Each slice is a narrow cylinder sector; groups of sectors form a jelly ring.
 const SLICE = TAU / CONFIG.sliceCount;
 const wedgeGeo = new THREE.CylinderGeometry(
   CONFIG.platformRadius,
@@ -268,10 +285,10 @@ const wedgeGeo = new THREE.CylinderGeometry(
   -SLICE * 0.465,
   SLICE * 0.93,
 );
-const chipGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.035, 9);
-const hazardBumpGeo = new THREE.ConeGeometry(0.10, 0.18, 5);
-const cookieChunkGeo = new THREE.BoxGeometry(0.22, 0.09, 0.16);
-const crumbGeo = new THREE.SphereGeometry(0.055, 7, 6);
+const chipGeo = new THREE.SphereGeometry(0.075, 9, 7);
+const hazardBumpGeo = new THREE.SphereGeometry(0.11, 10, 8);
+const cookieChunkGeo = new THREE.BoxGeometry(0.22, 0.11, 0.17);
+const crumbGeo = new THREE.SphereGeometry(0.055, 8, 7);
 
 function arcType(layerData, angle) {
   if (layerData.gaps.some((g) => angleInArc(angle, g.start, g.width))) return 'gap';
@@ -320,8 +337,8 @@ function makeLayer(index) {
     if (type === 'hazard' && i % 2 === 0) {
       const spike = new THREE.Mesh(hazardBumpGeo, matHazardTop);
       const rr = 2.35;
-      spike.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.08, Math.cos(angle) * rr);
-      spike.rotation.y = angle;
+      spike.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.10, Math.cos(angle) * rr);
+      spike.scale.set(1.0, 0.72, 1.0);
       group.add(spike);
     }
   }
@@ -329,21 +346,21 @@ function makeLayer(index) {
   // This should be impossible after snapping, but keep a runtime guard so a
   // fully closed cookie layer can never silently enter gameplay.
   if (renderedGapSlices < requiredGapSlices) {
-    console.error('Invalid cookie layer: visible gap missing', { index, renderedGapSlices, requiredGapSlices, data });
+    console.error('Invalid jelly layer: visible gap missing', { index, renderedGapSlices, requiredGapSlices, data });
     towerRoot.remove(group);
     return makeLayer(index);
   }
 
-  // Sparse chocolate chips make the whole disk read as one edible cookie rather than a plain platform.
-  for (let c = 0; c < 7; c++) {
-    const angle = normalizeAngle(data.primaryAngle + 1.0 + c * 0.77);
-    if (arcType(data, angle) !== 'safe') continue;
-    const rr = 1.35 + (c % 3) * 0.62;
-    const chip = new THREE.Mesh(chipGeo, matChip);
-    chip.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.03, Math.cos(angle) * rr);
-    chip.rotation.x = Math.PI / 2;
-    chip.rotation.z = angle;
-    group.add(chip);
+  // Sparse glossy bubbles reinforce the jelly material without cluttering the playfield.
+  for (let c = 0; c < 8; c++) {
+    const angle = normalizeAngle(data.primaryAngle + 0.85 + c * 0.73);
+    const type = arcType(data, angle);
+    if (type === 'gap') continue;
+    const rr = 1.30 + (c % 3) * 0.66;
+    const bubble = new THREE.Mesh(chipGeo, type === 'hazard' ? matHazardTop : matChip);
+    bubble.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.055 + (c % 2) * 0.025, Math.cos(angle) * rr);
+    bubble.scale.setScalar(0.68 + (c % 3) * 0.18);
+    group.add(bubble);
   }
 
   const layer = {
@@ -413,7 +430,7 @@ function showCombo(n) {
 function spawnPlusOne() {
   const el = document.createElement('div');
   el.className = 'plus-one';
-  el.textContent = '+1 🐾';
+  el.textContent = '+1 弹跳';
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
@@ -464,7 +481,7 @@ function landOn(layer) {
 
 function getMouthWorldPosition() {
   const p = new THREE.Vector3();
-  cat.mouth.getWorldPosition(p);
+  cat.mouthAnchor.getWorldPosition(p);
   return p;
 }
 
@@ -481,14 +498,31 @@ function cleanupLayersAbove(landedIndex) {
   }
 }
 
+function spawnJellyBurst(position, scale = 1.55) {
+  const mat = new THREE.SpriteMaterial({
+    map: jellyBurstTexture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    opacity: 0.88,
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.position.copy(position);
+  sprite.scale.set(scale, scale, 1);
+  sprite.renderOrder = 15;
+  scene.add(sprite);
+  effects.push({ kind: 'burst', mesh: sprite, duration: 0.34, t: 0, initialScale: scale });
+}
+
 function spawnEatFragments(layer) {
-  const chunkCount = 24;
+  cat.eatTimer = Math.max(cat.eatTimer, 0.26);
+  const chunkCount = 28;
   for (let i = 0; i < chunkCount; i++) {
     const angle = (i / chunkCount) * TAU + (layer.index % 7) * 0.13;
-    const radius = 1.1 + (i % 4) * 0.43 + Math.random() * 0.16;
+    const radius = 1.0 + (i % 4) * 0.45 + Math.random() * 0.18;
     const local = new THREE.Vector3(
       Math.sin(angle) * radius,
-      layer.group.position.y + (Math.random() - 0.5) * 0.08,
+      layer.group.position.y + (Math.random() - 0.5) * 0.10,
       Math.cos(angle) * radius,
     );
     const world = towerRoot.localToWorld(local.clone());
@@ -507,21 +541,24 @@ function spawnEatFragments(layer) {
       mesh,
       start: world.clone(),
       kind: 'chunk',
-      lift: 0.34 + Math.random() * 0.42,
+      lift: 0.36 + Math.random() * 0.48,
       orbitPhase: Math.random() * TAU,
-      orbitAmp: 0.14 + Math.random() * 0.18,
+      orbitAmp: 0.14 + Math.random() * 0.20,
       spin: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
-      duration: 0.32 + Math.random() * 0.14,
+      duration: 0.34 + Math.random() * 0.15,
       t: 0,
       initialScale: mesh.scale.x,
     });
   }
 
+  const mouth = getMouthWorldPosition();
+  const impact = new THREE.Vector3(0, layer.group.position.y + 0.10, CONFIG.catZ);
+  spawnJellyBurst(impact, 1.60);
+
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(0.34, 0.03, 8, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffefbf, transparent: true, opacity: 0.9, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: 0xbaffcf, transparent: true, opacity: 0.9, depthWrite: false }),
   );
-  const mouth = getMouthWorldPosition();
   ring.position.copy(mouth);
   ring.rotation.x = Math.PI / 2;
   scene.add(ring);
@@ -613,11 +650,11 @@ function showGameOver(reason) {
     if (reason === 'hazard') {
       hud.deathEmoji.textContent = '🙀';
       hud.deathTitle.textContent = '烫到爪爪啦！';
-      hud.deathText.textContent = '烧焦的饼干是危险区，下一局别落上去。';
+      hud.deathText.textContent = '紫红色毒果冻是危险区，下一局别落上去。';
     } else {
       hud.deathEmoji.textContent = '😿';
       hud.deathTitle.textContent = '没力气啦！';
-      hud.deathText.textContent = '少空跳，多追连续缺口，就能把猫咪重新喂胖。';
+      hud.deathText.textContent = '少空跳，多追连续缺口，吃掉果冻就能补充弹跳次数。';
     }
     hud.gameOver.classList.remove('hidden');
   }, reason === 'hazard' ? 430 : 560);
@@ -633,7 +670,8 @@ function resetGame() {
   cat.root.position.set(0, CONFIG.platformThickness / 2 + getCatRadius(), CONFIG.catZ);
   cat.root.rotation.set(0, 0, 0);
   cat.visual.scale.setScalar(targetCatScale());
-  cat.head.rotation.set(0, 0, 0);
+  cat.eatTimer = 0;
+  setCatTexture('idle');
   deadShown = false;
   smashReady = false;
   smashLayer = null;
@@ -658,6 +696,17 @@ function updateEatAnimations(dt) {
     const fx = effects[i];
     fx.t += dt;
     const u = THREE.MathUtils.clamp(fx.t / fx.duration, 0, 1);
+    if (fx.kind === 'burst') {
+      const s = fx.initialScale * (0.72 + u * 0.72);
+      fx.mesh.scale.set(s, s, 1);
+      fx.mesh.material.opacity = (1 - u) * 0.88;
+      if (u >= 1) {
+        scene.remove(fx.mesh);
+        fx.mesh.material?.dispose?.();
+        effects.splice(i, 1);
+      }
+      continue;
+    }
     if (fx.kind === 'ring') {
       fx.mesh.position.copy(mouth);
       const s = 1 + u * 1.8;
@@ -754,48 +803,41 @@ function updateCat(dt) {
   } else if (state === 'hazardDead') {
     vy += CONFIG.gravity * 0.72 * dt;
     cat.root.position.y += vy * dt;
-    cat.root.rotation.z += dt * 4.2;
-    cat.root.rotation.x += dt * 2.4;
+    cat.root.rotation.z += dt * 3.6;
   }
 
   const isFalling = state === 'bouncing' && vy < -0.8;
   const base = targetCatScale();
   pulse *= Math.pow(0.035, dt);
   squash *= Math.pow(0.0025, dt);
-  const sx = base * (1 + pulse + squash * 0.11) * (isFalling ? 0.95 : 1);
-  const sy = base * (1 + pulse * 0.65 - squash * 0.16) * (isFalling ? 1.08 : 1);
-  const sz = base * (1 + pulse + squash * 0.08) * (isFalling ? 0.95 : 1);
+  cat.eatTimer = Math.max(0, cat.eatTimer - dt);
+
+  const sx = base * (1 + pulse + squash * 0.12) * (isFalling ? 0.96 : 1);
+  const sy = base * (1 + pulse * 0.55 - squash * 0.18) * (isFalling ? 1.04 : 1);
+  const sz = base;
   cat.visual.scale.x = THREE.MathUtils.lerp(cat.visual.scale.x, sx, 1 - Math.exp(-14 * dt));
   cat.visual.scale.y = THREE.MathUtils.lerp(cat.visual.scale.y, sy, 1 - Math.exp(-14 * dt));
   cat.visual.scale.z = THREE.MathUtils.lerp(cat.visual.scale.z, sz, 1 - Math.exp(-14 * dt));
 
-  // Signature falling pose: head tilts back and the mouth opens upward while the cookie is being inhaled.
-  const mouthOpen = isFalling ? 1 : 0;
-  cat.head.rotation.x = THREE.MathUtils.lerp(cat.head.rotation.x, isFalling ? -0.48 : 0, 1 - Math.exp(-12 * dt));
-  cat.visual.rotation.z = THREE.MathUtils.lerp(cat.visual.rotation.z, isFalling ? Math.sin(performance.now() * 0.01) * 0.06 : 0, 1 - Math.exp(-8 * dt));
-  cat.tail.rotation.z = THREE.MathUtils.lerp(cat.tail.rotation.z, isFalling ? -0.85 : -0.55, 1 - Math.exp(-8 * dt));
-  const mx = THREE.MathUtils.lerp(0.72, 1.72, mouthOpen);
-  const my = THREE.MathUtils.lerp(0.25, 1.95, mouthOpen);
-  cat.mouth.scale.x = THREE.MathUtils.lerp(cat.mouth.scale.x, mx, 1 - Math.exp(-16 * dt));
-  cat.mouth.scale.y = THREE.MathUtils.lerp(cat.mouth.scale.y, my, 1 - Math.exp(-16 * dt));
-  cat.mouth.scale.z = THREE.MathUtils.lerp(cat.mouth.scale.z, 0.32 + mouthOpen * 0.36, 1 - Math.exp(-16 * dt));
-  const auraOpacity = isFalling ? 0.55 + Math.min(0.35, Math.max(0, pulse) * 2.2) : 0.0;
-  cat.suctionAura.material.opacity = THREE.MathUtils.lerp(cat.suctionAura.material.opacity, auraOpacity, 1 - Math.exp(-12 * dt));
-  const auraScale = isFalling ? 1.0 + Math.min(0.9, Math.max(0, pulse) * 5.5) : 0.7;
-  cat.suctionAura.scale.setScalar(THREE.MathUtils.lerp(cat.suctionAura.scale.x, auraScale, 1 - Math.exp(-10 * dt)));
-  cat.suctionAura.rotation.z += dt * (2.5 + Math.max(0, pulse) * 12);
+  if (!rules.alive || state === 'hazardDead' || state === 'starved') {
+    setCatTexture('fail');
+  } else if (state === 'smashCharge') {
+    setCatTexture('squash');
+  } else if (cat.eatTimer > 0) {
+    setCatTexture('eat');
+  } else if (isFalling) {
+    setCatTexture('fall');
+  } else {
+    setCatTexture('idle');
+  }
 
-  // Low-jump facial feedback without changing physics.
-  const worried = rules.jumps <= 2 && rules.alive;
-  cat.leftEye.scale.y = THREE.MathUtils.lerp(cat.leftEye.scale.y, worried ? 0.55 : 1.3, 1 - Math.exp(-7 * dt));
-  cat.rightEye.scale.y = cat.leftEye.scale.y;
-  const blushOpacity = worried ? 0.55 : 0.72;
-  cat.leftBlush.material.opacity = THREE.MathUtils.lerp(cat.leftBlush.material.opacity, blushOpacity, 1 - Math.exp(-6 * dt));
-  cat.rightBlush.material.opacity = cat.leftBlush.material.opacity;
-  const earRotL = worried ? 0.04 : 0.16;
-  const earRotR = worried ? -0.04 : -0.16;
-  cat.leftEar.rotation.z = THREE.MathUtils.lerp(cat.leftEar.rotation.z, earRotL, 1 - Math.exp(-6 * dt));
-  cat.rightEar.rotation.z = THREE.MathUtils.lerp(cat.rightEar.rotation.z, earRotR, 1 - Math.exp(-6 * dt));
+  const tilt = isFalling ? Math.sin(performance.now() * 0.010) * 0.055 : 0;
+  cat.visual.rotation.z = THREE.MathUtils.lerp(cat.visual.rotation.z, tilt, 1 - Math.exp(-9 * dt));
+  cat.shadow.material.opacity = THREE.MathUtils.lerp(
+    cat.shadow.material.opacity,
+    isFalling ? 0.08 : 0.16,
+    1 - Math.exp(-8 * dt),
+  );
 }
 
 let cameraFocusY = 0;
