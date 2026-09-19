@@ -208,13 +208,13 @@ function loadGameTexture(url) {
   return tex;
 }
 const catTextures = {
-  idle: loadGameTexture('./assets/cat-idle.webp'),
-  fall: loadGameTexture('./assets/cat-fall.webp'),
-  eat: loadGameTexture('./assets/cat-eat.webp'),
-  squash: loadGameTexture('./assets/cat-squash.webp'),
-  fail: loadGameTexture('./assets/cat-fail.webp'),
+  idle: loadGameTexture('./assets/cat-idle.svg'),
+  fall: loadGameTexture('./assets/cat-fall.svg'),
+  eat: loadGameTexture('./assets/cat-eat.svg'),
+  squash: loadGameTexture('./assets/cat-squash.svg'),
+  fail: loadGameTexture('./assets/cat-fail.svg'),
 };
-const jellyBurstTexture = loadGameTexture('./assets/jelly-burst.webp');
+const jellyBurstTexture = loadGameTexture('./assets/jelly-burst.svg');
 
 function createCat() {
   const root = new THREE.Group();
