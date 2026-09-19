@@ -3,6 +3,8 @@ if (!THREE) throw new Error('Three.js 未加载');
 import { GameRules, LayerGenerator, angleInArc, normalizeAngle, TAU } from './logic.mjs';
 
 const gameEl = document.getElementById('game');
+const frameEl = document.getElementById('phoneFrame');
+const catDom = document.getElementById('catSprite');
 const loadingEl = document.getElementById('loading');
 const hud = {
   depth: document.getElementById('depth'),
@@ -24,23 +26,23 @@ const hud = {
 const CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
-  layerGap: 1.72,
-  platformRadius: 3.25,
-  platformThickness: 0.22,
-  pillarRadius: 0.78,
-  catRadius: 0.40,
-  catRadiusAtMax: 0.49,
+  layerGap: 2.04,
+  platformRadius: 3.72,
+  platformThickness: 0.40,
+  pillarRadius: 0.92,
+  catRadius: 0.31,
+  catRadiusAtMax: 0.37,
   catZ: 2.78,
   gravity: -10.2,
   jumpVelocity: 5.25,
   landingPause: 0.08,
   dragTurnsPerScreen: 240 * Math.PI / 180,
-  sliceCount: 48,
-  aheadLayers: 18,
+  sliceCount: 24,
+  aheadLayers: 14,
   keepBehind: 5,
   cameraFollow: 6.1,
   breakthroughCombo: 5,
-  minGapSlices: 6,
+  minGapSlices: 3,
   smashBounceVelocity: 4.15,
 });
 
@@ -48,12 +50,14 @@ const scene = new THREE.Scene();
 scene.background = null;
 scene.fog = new THREE.Fog(0xdff7ff, 16, 36);
 
-const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 120);
-camera.position.set(0.35, 5.0, 8.9);
+const initialW = Math.max(gameEl.clientWidth, 320);
+const initialH = Math.max(gameEl.clientHeight, 568);
+const camera = new THREE.PerspectiveCamera(38, initialW / initialH, 0.1, 140);
+camera.position.set(0.65, 5.0, 21.0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(initialW, initialH, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -81,73 +85,72 @@ const towerRoot = new THREE.Group();
 scene.add(towerRoot);
 
 const matCookie = new THREE.MeshPhysicalMaterial({
-  color: 0x66e890,
-  roughness: 0.16,
+  color: 0x45ef78,
+  roughness: 0.08,
   metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.08,
-  transmission: 0.22,
-  transparent: true,
-  opacity: 0.88,
-  thickness: 0.42,
-  ior: 1.34,
-  emissive: 0x103d1d,
-  emissiveIntensity: 0.08,
-});
-const matCookieAlt = new THREE.MeshPhysicalMaterial({
-  color: 0x9af6b5,
-  roughness: 0.20,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.10,
-  transmission: 0.18,
-  transparent: true,
-  opacity: 0.90,
-  thickness: 0.40,
-  ior: 1.34,
-});
-const matCookieEdge = new THREE.MeshStandardMaterial({ color: 0x45c86f, roughness: 0.38 });
-const matHazard = new THREE.MeshPhysicalMaterial({
-  color: 0xd22c78,
-  roughness: 0.15,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.06,
-  transmission: 0.14,
-  transparent: true,
-  opacity: 0.92,
-  thickness: 0.44,
-  ior: 1.37,
-  emissive: 0x5b082b,
-  emissiveIntensity: 0.22,
-});
-const matHazardTop = new THREE.MeshPhysicalMaterial({
-  color: 0xff5b9b,
-  roughness: 0.12,
   clearcoat: 1,
   clearcoatRoughness: 0.04,
-  emissive: 0x8b103d,
-  emissiveIntensity: 0.32,
+  transmission: 0.08,
+  transparent: true,
+  opacity: 0.93,
+  thickness: 0.65,
+  ior: 1.36,
+  emissive: 0x0d8a35,
+  emissiveIntensity: 0.16,
+});
+const matCookieAlt = new THREE.MeshPhysicalMaterial({
+  color: 0x8cffaa,
+  roughness: 0.10,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.05,
+  transmission: 0.06,
+  transparent: true,
+  opacity: 0.94,
+  thickness: 0.62,
+  ior: 1.36,
+  emissive: 0x1c8f43,
+  emissiveIntensity: 0.10,
+});
+const matHazard = new THREE.MeshPhysicalMaterial({
+  color: 0xd80a61,
+  roughness: 0.07,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.035,
+  transmission: 0.05,
+  transparent: true,
+  opacity: 0.95,
+  thickness: 0.66,
+  ior: 1.38,
+  emissive: 0x720024,
+  emissiveIntensity: 0.28,
+});
+const matHazardTop = new THREE.MeshStandardMaterial({
+  color: 0xff679b,
+  roughness: 0.16,
+  emissive: 0x8a0d42,
+  emissiveIntensity: 0.24,
 });
 const matChip = new THREE.MeshPhysicalMaterial({
-  color: 0xcaffda,
-  roughness: 0.08,
-  transmission: 0.30,
+  color: 0xcffff0,
+  roughness: 0.04,
+  transmission: 0.12,
   transparent: true,
-  opacity: 0.72,
+  opacity: 0.78,
   clearcoat: 1,
 });
-const matPillar = new THREE.MeshStandardMaterial({ color: 0xfff0cf, roughness: 0.42 });
-const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xff8fbc, roughness: 0.30, emissive: 0x4a0d2a, emissiveIntensity: 0.05 });
-const matPillarCream = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.34 });
-const matPaw = new THREE.MeshStandardMaterial({ color: 0xff78ad, roughness: 0.24, emissive: 0x5a1230, emissiveIntensity: 0.06 });
+const matPillar = new THREE.MeshStandardMaterial({ color: 0xffefd4, roughness: 0.31 });
+const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xff90bd, roughness: 0.22, emissive: 0x52122f, emissiveIntensity: 0.04 });
+const matPillarCream = new THREE.MeshStandardMaterial({ color: 0xfffbf1, roughness: 0.25 });
+const matPaw = new THREE.MeshStandardMaterial({ color: 0xff79ad, roughness: 0.18, emissive: 0x54112f, emissiveIntensity: 0.06 });
 
 // The center pillar is a recycled visual segment that follows the camera vertically.
 const pillarVisual = new THREE.Group();
 towerRoot.add(pillarVisual);
 
 const pillar = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 70, 36),
+  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 70, 48),
   matPillar,
 );
 pillar.receiveShadow = true;
@@ -155,7 +158,7 @@ pillarVisual.add(pillar);
 
 for (let y = -34.8, n = 0; y <= 34.8; y += 2.9, n++) {
   const stripe = new THREE.Mesh(
-    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.014, 0.048, 8, 40),
+    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.018, 0.072, 10, 48),
     n % 2 ? matPillarStripe : matPillarCream,
   );
   stripe.rotation.x = Math.PI / 2;
@@ -202,19 +205,16 @@ for (let i = 0; i < 28; i++) {
 }
 
 const textureLoader = new THREE.TextureLoader();
-function loadGameTexture(url) {
-  const tex = textureLoader.load(url);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-const catTextures = {
-  idle: loadGameTexture('./assets/cat-idle.svg'),
-  fall: loadGameTexture('./assets/cat-fall.svg'),
-  eat: loadGameTexture('./assets/cat-eat.svg'),
-  squash: loadGameTexture('./assets/cat-squash.svg'),
-  fail: loadGameTexture('./assets/cat-fail.svg'),
+const jellyBurstTexture = textureLoader.load('./assets/jelly-burst.svg');
+jellyBurstTexture.colorSpace = THREE.SRGBColorSpace;
+
+const catSources = {
+  idle: './assets/cat-idle.svg',
+  fall: './assets/cat-fall.svg',
+  eat: './assets/cat-eat.svg',
+  squash: './assets/cat-squash.svg',
+  fail: './assets/cat-fail.svg',
 };
-const jellyBurstTexture = loadGameTexture('./assets/jelly-burst.svg');
 
 function createCat() {
   const root = new THREE.Group();
@@ -224,34 +224,21 @@ function createCat() {
   const visual = new THREE.Group();
   root.add(visual);
 
-  const spriteMat = new THREE.SpriteMaterial({
-    map: catTextures.idle,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-  });
-  const sprite = new THREE.Sprite(spriteMat);
-  sprite.scale.set(1.42, 1.42, 1);
-  sprite.position.y = 0.06;
-  sprite.renderOrder = 20;
-  visual.add(sprite);
-
   const mouthAnchor = new THREE.Object3D();
-  mouthAnchor.position.set(0, 0.20, 0.10);
+  mouthAnchor.position.set(0, 0.14, 0.10);
   root.add(mouthAnchor);
 
   const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.40, 28),
-    new THREE.MeshBasicMaterial({ color: 0x4b6e68, transparent: true, opacity: 0.16, depthWrite: false }),
+    new THREE.CircleGeometry(0.40, 30),
+    new THREE.MeshBasicMaterial({ color: 0x315c55, transparent: true, opacity: 0.13, depthWrite: false }),
   );
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(0, -0.47, 0);
+  shadow.position.set(0, -0.38, 0);
   root.add(shadow);
 
   return {
     root,
     visual,
-    sprite,
     mouthAnchor,
     shadow,
     currentTexture: 'idle',
@@ -262,8 +249,7 @@ function createCat() {
 function setCatTexture(name) {
   if (cat.currentTexture === name) return;
   cat.currentTexture = name;
-  cat.sprite.material.map = catTextures[name];
-  cat.sprite.material.needsUpdate = true;
+  catDom.src = catSources[name];
 }
 
 const cat = createCat();
@@ -273,20 +259,44 @@ let generator = new LayerGenerator((Date.now() ^ 0xA11CE) >>> 0);
 const layers = new Map();
 const effects = [];
 
-// Shared wedge geometry. Each slice is a narrow cylinder sector; groups of sectors form a jelly ring.
+// Chunky annular jelly segment. Unlike a full pie slice, it leaves the pillar visible
+// and reads like the thick gummy blocks from the target art direction.
 const SLICE = TAU / CONFIG.sliceCount;
-const wedgeGeo = new THREE.CylinderGeometry(
-  CONFIG.platformRadius,
+function createAnnularWedgeGeometry(innerR, outerR, height, angleWidth, steps = 3) {
+  const pos = [];
+  const idx = [];
+  const halfH = height / 2;
+  for (let j = 0; j <= steps; j++) {
+    const a = -angleWidth / 2 + (angleWidth * j / steps);
+    const s = Math.sin(a), c = Math.cos(a);
+    pos.push(innerR*s, -halfH, innerR*c, outerR*s, -halfH, outerR*c,
+             innerR*s,  halfH, innerR*c, outerR*s,  halfH, outerR*c);
+  }
+  for (let j = 0; j < steps; j++) {
+    const a=j*4, b=(j+1)*4;
+    idx.push(a+2,a+3,b+3, a+2,b+3,b+2); // top
+    idx.push(a,b+1,a+1, a,b,b+1);       // bottom
+    idx.push(a,a+2,b+2, a,b+2,b);       // inner
+    idx.push(a+1,b+1,b+3, a+1,b+3,a+3);// outer
+  }
+  const last=steps*4;
+  idx.push(0,1,3, 0,3,2);
+  idx.push(last,last+2,last+3, last,last+3,last+1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+const wedgeGeo = createAnnularWedgeGeometry(
+  CONFIG.pillarRadius + 0.10,
   CONFIG.platformRadius,
   CONFIG.platformThickness,
-  3,
-  1,
-  false,
-  -SLICE * 0.465,
-  SLICE * 0.93,
+  SLICE * 0.88,
+  4,
 );
 const chipGeo = new THREE.SphereGeometry(0.075, 9, 7);
-const hazardBumpGeo = new THREE.SphereGeometry(0.11, 10, 8);
+const hazardBumpGeo = new THREE.SphereGeometry(0.105, 14, 10);
 const cookieChunkGeo = new THREE.BoxGeometry(0.22, 0.11, 0.17);
 const crumbGeo = new THREE.SphereGeometry(0.055, 8, 7);
 
@@ -351,15 +361,15 @@ function makeLayer(index) {
     return makeLayer(index);
   }
 
-  // Sparse glossy bubbles reinforce the jelly material without cluttering the playfield.
-  for (let c = 0; c < 8; c++) {
-    const angle = normalizeAngle(data.primaryAngle + 0.85 + c * 0.73);
+  // A few embedded bubbles give the thick pieces the glossy jelly look from the target mockup.
+  for (let c = 0; c < 6; c++) {
+    const angle = normalizeAngle(data.primaryAngle + 0.72 + c * 1.05);
     const type = arcType(data, angle);
     if (type === 'gap') continue;
-    const rr = 1.30 + (c % 3) * 0.66;
+    const rr = 1.65 + (c % 3) * 0.73;
     const bubble = new THREE.Mesh(chipGeo, type === 'hazard' ? matHazardTop : matChip);
-    bubble.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.055 + (c % 2) * 0.025, Math.cos(angle) * rr);
-    bubble.scale.setScalar(0.68 + (c % 3) * 0.18);
+    bubble.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.085, Math.cos(angle) * rr);
+    bubble.scale.setScalar(0.72 + (c % 2) * 0.34);
     group.add(bubble);
   }
 
@@ -431,7 +441,7 @@ function spawnPlusOne() {
   const el = document.createElement('div');
   el.className = 'plus-one';
   el.textContent = '+1 弹跳';
-  document.body.appendChild(el);
+  frameEl.appendChild(el);
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
 
@@ -649,7 +659,7 @@ function showGameOver(reason) {
     hud.finalScore.textContent = String(rules.score);
     if (reason === 'hazard') {
       hud.deathEmoji.textContent = '🙀';
-      hud.deathTitle.textContent = '烫到爪爪啦！';
+      hud.deathTitle.textContent = '碰到毒果冻啦！';
       hud.deathText.textContent = '紫红色毒果冻是危险区，下一局别落上去。';
     } else {
       hud.deathEmoji.textContent = '😿';
@@ -672,6 +682,7 @@ function resetGame() {
   cat.visual.scale.setScalar(targetCatScale());
   cat.eatTimer = 0;
   setCatTexture('idle');
+  catDom.style.transform = 'translate(-50%,-50%) scale(1)';
   deadShown = false;
   smashReady = false;
   smashLayer = null;
@@ -819,6 +830,12 @@ function updateCat(dt) {
   cat.visual.scale.y = THREE.MathUtils.lerp(cat.visual.scale.y, sy, 1 - Math.exp(-14 * dt));
   cat.visual.scale.z = THREE.MathUtils.lerp(cat.visual.scale.z, sz, 1 - Math.exp(-14 * dt));
 
+  const domScale = THREE.MathUtils.clamp(0.88 + pulse * 0.40 + squash * 0.08, 0.78, 1.12);
+  const domY = state === 'smashCharge' ? 1.09 : (isFalling ? 1.02 : 1);
+  const domX = state === 'smashCharge' ? 1.08 : 1;
+  const domTilt = isFalling ? Math.sin(performance.now() * 0.010) * 3.2 : 0;
+  catDom.style.transform = `translate(-50%,-50%) rotate(${domTilt}deg) scale(${domScale * domX}, ${domScale / domY})`;
+
   if (!rules.alive || state === 'hazardDead' || state === 'starved') {
     setCatTexture('fail');
   } else if (state === 'smashCharge') {
@@ -831,7 +848,7 @@ function updateCat(dt) {
     setCatTexture('idle');
   }
 
-  const tilt = isFalling ? Math.sin(performance.now() * 0.010) * 0.055 : 0;
+  const tilt = isFalling ? Math.sin(performance.now() * 0.010) * 0.035 : 0;
   cat.visual.rotation.z = THREE.MathUtils.lerp(cat.visual.rotation.z, tilt, 1 - Math.exp(-9 * dt));
   cat.shadow.material.opacity = THREE.MathUtils.lerp(
     cat.shadow.material.opacity,
@@ -842,19 +859,16 @@ function updateCat(dt) {
 
 let cameraFocusY = 0;
 function updateCamera(dt) {
-  const targetY = cat.root.position.y - 0.15;
-  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-10.0 * dt));
-  camera.position.y = cameraFocusY + 4.35;
-  const mobile = innerWidth < 720;
-  camera.position.x = mobile ? 0.18 : 0.24;
-  camera.position.z = mobile ? 8.25 : 8.85;
-  camera.lookAt(0, cameraFocusY - 0.12, CONFIG.catZ - 0.06);
+  const targetY = cat.root.position.y - 0.10;
+  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-9.0 * dt));
+  camera.position.y = cameraFocusY + 4.55;
+  camera.position.x = 0.72;
+  camera.position.z = 21.0;
+  camera.lookAt(0, cameraFocusY - 0.40, 0);
 
-  // Keep the center pillar visually continuous no matter how deep the run goes.
-  pillarVisual.position.y = cameraFocusY - 1.5;
-
-  // Decorative crumbs drift with progress so the background never looks static.
-  decoGroup.position.y = cameraFocusY * 0.72;
+  // Recycle the decorative pillar so the candy column never ends.
+  pillarVisual.position.y = cameraFocusY - 1.3;
+  decoGroup.position.y = cameraFocusY * 0.40;
 }
 
 let dragging = false;
@@ -873,7 +887,7 @@ function pointerMove(e) {
   if (!dragging || !rules.alive) return;
   const dx = e.clientX - pointerX;
   pointerX = e.clientX;
-  const sensitivity = CONFIG.dragTurnsPerScreen / Math.max(innerWidth, 320);
+  const sensitivity = CONFIG.dragTurnsPerScreen / Math.max(gameEl.clientWidth, 320);
   towerRoot.rotation.y += dx * sensitivity;
 }
 function pointerUp(e) {
@@ -886,12 +900,15 @@ renderer.domElement.addEventListener('pointerup', pointerUp);
 renderer.domElement.addEventListener('pointercancel', pointerUp);
 
 function resize() {
-  camera.aspect = innerWidth / innerHeight;
+  const w = Math.max(gameEl.clientWidth, 320);
+  const h = Math.max(gameEl.clientHeight, 568);
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(w, h, false);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 }
 addEventListener('resize', resize);
+new ResizeObserver(resize).observe(frameEl);
 
 let last = performance.now();
 function frame(now) {
