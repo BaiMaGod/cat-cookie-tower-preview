@@ -818,11 +818,13 @@ function updateCamera(dt) {
   camera.position.z = 10.55;
   camera.lookAt(0, cameraFocusY - 0.32, 1.02);
 
-  // Scroll the exact pillar artwork with the world while keeping it centered.
+  // Scroll the pillar texture in world-space. Let CSS repeat the real tile
+  // height instead of wrapping at a hard-coded 352px, which caused visible
+  // jumps and mismatched the artwork aspect ratio.
   pillarVisual.position.y = cameraFocusY - 0.45;
   if (pillarArtDom) {
     const pxPerWorldUnit = gameEl.clientHeight / 12.6;
-    const offset = ((cameraFocusY * pxPerWorldUnit) % 352 + 352) % 352;
+    const offset = cameraFocusY * pxPerWorldUnit;
     pillarArtDom.style.backgroundPosition = `center ${offset.toFixed(1)}px`;
   }
   decoGroup.position.y = cameraFocusY * 0.40;
