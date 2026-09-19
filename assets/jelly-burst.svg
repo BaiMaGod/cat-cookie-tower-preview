@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <defs><radialGradient id="gl"><stop stop-color="#EFFFF3" stop-opacity=".9"/><stop offset=".5" stop-color="#6DFFA0" stop-opacity=".55"/><stop offset="1" stop-color="#55E989" stop-opacity="0"/></radialGradient><filter id="g"><feGaussianBlur stdDeviation="2"/></filter></defs>
+    <circle cx="128" cy="128" r="84" fill="url(#gl)" filter="url(#g)"/>
+    <g fill="#6BFA98" stroke="#E9FFF0" stroke-width="3">
+      <rect x="48" y="76" width="34" height="31" rx="8" transform="rotate(-24 65 91)"/><rect x="164" y="65" width="37" height="32" rx="9" transform="rotate(26 182 81)"/>
+      <rect x="49" y="151" width="40" height="34" rx="9" transform="rotate(22 69 168)"/><rect x="164" y="156" width="39" height="34" rx="9" transform="rotate(-24 183 173)"/>
+      <rect x="108" y="39" width="36" height="34" rx="9" transform="rotate(12 126 56)"/><rect x="108" y="184" width="36" height="34" rx="9" transform="rotate(-10 126 201)"/>
+    </g>
+    <g fill="#B9FFD0"><circle cx="38" cy="126" r="10"/><circle cx="218" cy="128" r="11"/><circle cx="93" cy="92" r="8"/><circle cx="157" cy="116" r="7"/><circle cx="101" cy="166" r="6"/><circle cx="151" cy="175" r="8"/></g>
+    <g fill="#FFFAD0"><path d="m128 96 5 17 17 5-17 5-5 17-5-17-17-5 17-5z"/><path d="m208 108 3 10 10 3-10 3-3 10-3-10-10-3 10-3z"/><path d="m56 113 3 10 10 3-10 3-3 10-3-10-10-3 10-3z"/></g>
+  </svg>
