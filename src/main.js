@@ -27,9 +27,9 @@ const CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
   layerGap: 1.82,
-  platformRadius: 2.78,
+  platformRadius: 2.95,
   platformThickness: 0.58,
-  pillarRadius: 0.92,
+  pillarRadius: 0.72,
   catRadius: 0.31,
   catRadiusAtMax: 0.37,
   catZ: 2.30,
@@ -68,7 +68,7 @@ gameEl.appendChild(renderer.domElement);
 
 const hemi = new THREE.HemisphereLight(0xf8ffff, 0x88b7c9, 2.9);
 scene.add(hemi);
-const key = new THREE.DirectionalLight(0xffffff, 3.2);
+const key = new THREE.DirectionalLight(0xffffff, 3.5);
 key.position.set(6, 10, 8);
 key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
@@ -77,7 +77,7 @@ key.shadow.camera.right = 8;
 key.shadow.camera.top = 8;
 key.shadow.camera.bottom = -8;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xffc5e3, 1.15);
+const fill = new THREE.DirectionalLight(0xffc5e3, 1.25);
 fill.position.set(-7, 3, -5);
 scene.add(fill);
 
@@ -145,6 +145,234 @@ const matChip = new THREE.MeshPhysicalMaterial({
   clearcoat: 1,
 });
 
+// Cream-and-pink candy pillar, built as real 3D geometry so depth/occlusion
+// matches the platforms. The dimensions are intentionally slimmer than the
+// jelly ring so the center column stays readable without swallowing gameplay.
+const matPillarCream = new THREE.MeshPhysicalMaterial({
+  color: 0xffe6aa,
+  roughness: 0.34,
+  metalness: 0,
+  clearcoat: 0.88,
+  clearcoatRoughness: 0.10,
+});
+const matPillarCreamAlt = new THREE.MeshPhysicalMaterial({
+  color: 0xffefc4,
+  roughness: 0.31,
+  metalness: 0,
+  clearcoat: 0.92,
+  clearcoatRoughness: 0.09,
+});
+const matCandyPink = new THREE.MeshPhysicalMaterial({
+  color: 0xff78a7,
+  roughness: 0.22,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.05,
+});
+const matCandyWhite = new THREE.MeshPhysicalMaterial({
+  color: 0xfff5ef,
+  roughness: 0.20,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.05,
+});
+const matPawPink = new THREE.MeshPhysicalMaterial({
+  color: 0xff7fa8,
+  roughness: 0.20,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.04,
+});
+const matFaceLine = new THREE.MeshStandardMaterial({
+  color: 0xc96f43,
+  roughness: 0.72,
+  metalness: 0,
+});
+
+const pillarBodyGeo = new THREE.CylinderGeometry(
+  CONFIG.pillarRadius,
+  CONFIG.pillarRadius,
+  CONFIG.layerGap + 0.06,
+  36,
+);
+const candyArcGeo = new THREE.TorusGeometry(
+  CONFIG.pillarRadius + 0.14,
+  0.13,
+  12,
+  12,
+  (TAU / 8) * 0.90,
+);
+candyArcGeo.rotateX(Math.PI / 2);
+const faceGeo = new THREE.SphereGeometry(0.34, 24, 18);
+const earGeo = new THREE.ConeGeometry(0.105, 0.20, 4);
+const eyeGeo = new THREE.TorusGeometry(0.040, 0.008, 6, 14, Math.PI);
+const noseGeo = new THREE.SphereGeometry(0.021, 10, 8);
+const pawPadGeo = new THREE.SphereGeometry(0.105, 16, 12);
+const pawToeGeo = new THREE.SphereGeometry(0.045, 12, 10);
+const sideDotGeo = new THREE.SphereGeometry(0.060, 12, 10);
+
+function createCandyRing() {
+  const group = new THREE.Group();
+  const step = TAU / 8;
+  for (let i = 0; i < 8; i++) {
+    const arc = new THREE.Mesh(candyArcGeo, i % 2 ? matCandyWhite : matCandyPink);
+    arc.rotation.y = -i * step;
+    arc.castShadow = false;
+    arc.receiveShadow = true;
+    group.add(arc);
+  }
+  return group;
+}
+
+function createCatFaceBadge() {
+  const group = new THREE.Group();
+
+  const face = new THREE.Mesh(faceGeo, matPillarCreamAlt);
+  face.scale.set(1.08, 0.82, 0.20);
+  face.castShadow = false;
+  group.add(face);
+
+  const earL = new THREE.Mesh(earGeo, matPillarCreamAlt);
+  earL.position.set(-0.18, 0.22, -0.005);
+  earL.rotation.z = -0.30;
+  earL.rotation.y = Math.PI / 4;
+  earL.scale.z = 0.65;
+  group.add(earL);
+
+  const earR = earL.clone();
+  earR.position.x = 0.18;
+  earR.rotation.z = 0.30;
+  earR.rotation.y = -Math.PI / 4;
+  group.add(earR);
+
+  const eyeL = new THREE.Mesh(eyeGeo, matFaceLine);
+  eyeL.position.set(-0.115, 0.015, 0.074);
+  eyeL.rotation.z = Math.PI;
+  group.add(eyeL);
+
+  const eyeR = eyeL.clone();
+  eyeR.position.x = 0.115;
+  group.add(eyeR);
+
+  const nose = new THREE.Mesh(noseGeo, matFaceLine);
+  nose.position.set(0, -0.035, 0.082);
+  nose.scale.set(1.25, 0.82, 0.65);
+  group.add(nose);
+
+  const mouthL = new THREE.Mesh(eyeGeo, matFaceLine);
+  mouthL.scale.setScalar(0.70);
+  mouthL.position.set(-0.035, -0.080, 0.080);
+  mouthL.rotation.z = 0.15;
+  group.add(mouthL);
+
+  const mouthR = mouthL.clone();
+  mouthR.position.x = 0.035;
+  mouthR.rotation.z = -0.15;
+  group.add(mouthR);
+
+  return group;
+}
+
+function createPawBadge(scale = 1) {
+  const group = new THREE.Group();
+
+  const pad = new THREE.Mesh(pawPadGeo, matPawPink);
+  pad.scale.set(1.30, 1.05, 0.26);
+  pad.position.y = -0.035;
+  group.add(pad);
+
+  const toes = [
+    [-0.105, 0.090],
+    [-0.035, 0.135],
+    [0.035, 0.135],
+    [0.105, 0.090],
+  ];
+  for (const [x, y] of toes) {
+    const toe = new THREE.Mesh(pawToeGeo, matPawPink);
+    toe.scale.set(1, 1, 0.30);
+    toe.position.set(x, y, 0.015);
+    group.add(toe);
+  }
+
+  group.scale.setScalar(scale);
+  return group;
+}
+
+function createPillarModule(index) {
+  const group = new THREE.Group();
+  group.position.y = -index * CONFIG.layerGap;
+
+  const body = new THREE.Mesh(
+    pillarBodyGeo,
+    index % 2 ? matPillarCreamAlt : matPillarCream,
+  );
+  body.position.y = -CONFIG.layerGap / 2;
+  body.castShadow = false;
+  body.receiveShadow = true;
+  group.add(body);
+
+  const ring = createCandyRing();
+  ring.position.y = -0.035;
+  group.add(ring);
+
+  const face = createCatFaceBadge();
+  face.position.set(0, -0.66, CONFIG.pillarRadius + 0.055);
+  group.add(face);
+
+  const paw = createPawBadge(0.82);
+  paw.position.set(0, -1.28, CONFIG.pillarRadius + 0.070);
+  group.add(paw);
+
+  // Small glossy pink decorations on the sides, like the reference pillar.
+  for (const side of [-1, 1]) {
+    const dot = new THREE.Mesh(sideDotGeo, matPawPink);
+    dot.scale.set(0.75, 1.35, 0.65);
+    dot.position.set(side * 0.56, -0.92, 0.50);
+    group.add(dot);
+  }
+
+  if (index === 0) {
+    const topRim = new THREE.Mesh(
+      new THREE.TorusGeometry(CONFIG.pillarRadius + 0.05, 0.17, 16, 40),
+      matPillarCreamAlt,
+    );
+    topRim.rotation.x = Math.PI / 2;
+    topRim.position.y = 0.30;
+    group.add(topRim);
+
+    const innerTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.70, CONFIG.pillarRadius * 0.70, 0.075, 36),
+      new THREE.MeshStandardMaterial({ color: 0xd59a55, roughness: 0.72 }),
+    );
+    innerTop.position.y = 0.255;
+    group.add(innerTop);
+  }
+
+  pillarRoot.add(group);
+  pillarModules.set(index, group);
+}
+
+function ensurePillarModules() {
+  const start = Math.max(0, rules.depth - CONFIG.keepBehind - 1);
+  const end = rules.depth + CONFIG.aheadLayers + 2;
+
+  for (let i = start; i <= end; i++) {
+    if (!pillarModules.has(i)) createPillarModule(i);
+  }
+
+  for (const [i, group] of pillarModules) {
+    if (i < start - 1 || i > end + 1) {
+      pillarRoot.remove(group);
+      pillarModules.delete(i);
+    }
+  }
+}
+
+function clearPillarModules() {
+  for (const group of pillarModules.values()) pillarRoot.remove(group);
+  pillarModules.clear();
+}
+
 const safeSpriteMat = new THREE.SpriteMaterial({
   map: safeJellyTexture,
   transparent: true,
@@ -158,12 +386,12 @@ const dangerSpriteMat = new THREE.SpriteMaterial({
   depthWrite: false,
 });
 
-// The visible pillar is rendered as a DOM art layer behind the transparent
-// WebGL canvas. This avoids texture/depth issues that previously left only a
-// plain white 3D core on screen, while platforms still occlude it naturally.
-const pillarVisual = new THREE.Group();
-scene.add(pillarVisual);
-const pillarArtDom = document.getElementById('pillarArtLayer');
+// The pillar is a real Three.js object. It intentionally lives outside
+// towerRoot so dragging rotates the jelly platforms around a stationary
+// center column instead of rotating a fake screen-space background.
+const pillarRoot = new THREE.Group();
+scene.add(pillarRoot);
+const pillarModules = new Map();
 
 // Background decoration now comes from the actual jelly-paradise artwork.
 const decoGroup = new THREE.Group();
@@ -258,8 +486,8 @@ function createJellyBlockGeometry(width, depth, height) {
   geo.computeVertexNormals();
   return geo;
 }
-const JELLY_RADIUS = 1.84;
-const jellyBlockGeo = createJellyBlockGeometry(1.02, 1.72, CONFIG.platformThickness);
+const JELLY_RADIUS = 2.08;
+const jellyBlockGeo = createJellyBlockGeometry(0.92, 1.55, CONFIG.platformThickness);
 const cookieChunkGeo = new THREE.BoxGeometry(0.24, 0.14, 0.22);
 const crumbGeo = new THREE.SphereGeometry(0.065, 8, 7);
 
@@ -626,6 +854,7 @@ function resetGame() {
   rules.reset();
   generator = new LayerGenerator((Date.now() ^ ((Math.random() * 0xffffffff) >>> 0)) >>> 0);
   clearLayers();
+  clearPillarModules();
   for (const fx of effects) scene.remove(fx.mesh);
   effects.length = 0;
   towerRoot.rotation.y = 0;
@@ -647,6 +876,7 @@ function resetGame() {
   // Show the configured initial count before the first real takeoff consumes one.
   landingTimer = 0.34;
   ensureLayers();
+  ensurePillarModules();
   hud.gameOver.classList.add('hidden');
   updateHUD();
 }
@@ -813,20 +1043,11 @@ let cameraFocusY = 0;
 function updateCamera(dt) {
   const targetY = cat.root.position.y - 0.10;
   cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-9.0 * dt));
-  camera.position.y = cameraFocusY + 4.55;
+  camera.position.y = cameraFocusY + 4.72;
   camera.position.x = 0.16;
-  camera.position.z = 10.55;
-  camera.lookAt(0, cameraFocusY - 0.32, 1.02);
+  camera.position.z = 10.30;
+  camera.lookAt(0, cameraFocusY - 0.18, 0.96);
 
-  // Scroll the pillar texture in world-space. Let CSS repeat the real tile
-  // height instead of wrapping at a hard-coded 352px, which caused visible
-  // jumps and mismatched the artwork aspect ratio.
-  pillarVisual.position.y = cameraFocusY - 0.45;
-  if (pillarArtDom) {
-    const pxPerWorldUnit = gameEl.clientHeight / 12.6;
-    const offset = cameraFocusY * pxPerWorldUnit;
-    pillarArtDom.style.backgroundPosition = `center ${offset.toFixed(1)}px`;
-  }
   decoGroup.position.y = cameraFocusY * 0.40;
 }
 
@@ -874,6 +1095,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 1 / 30);
   last = now;
   ensureLayers();
+  ensurePillarModules();
   updateCat(dt);
   updateEatAnimations(dt);
   updateCamera(dt);
