@@ -158,43 +158,51 @@ const dangerSpriteMat = new THREE.SpriteMaterial({
   depthWrite: false,
 });
 
-// Crisp candy pillar: rendered entirely with 3D geometry so it stays sharp
-// at every phone resolution. The previous oversized bitmap billboard was the
-// reason the column looked soft/blurry.
+// Candy-cat pillar: keep the body crisp 3D, but make the decoration bold enough
+// to read on a phone screen. Large candy bands + alternating cat/paw medallions
+// replace the previous nearly-plain cylinder without reintroducing blurry bitmap scaling.
 const pillarVisual = new THREE.Group();
 scene.add(pillarVisual);
 
 const pillarBodyMat = new THREE.MeshPhysicalMaterial({
-  color: 0xfff3de,
-  roughness: 0.30,
+  color: 0xfff0d9,
+  roughness: 0.26,
   metalness: 0,
-  clearcoat: 0.48,
-  clearcoatRoughness: 0.20,
+  clearcoat: 0.58,
+  clearcoatRoughness: 0.16,
 });
-const pillarRingMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff8fbe,
-  roughness: 0.20,
+const pillarPinkMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff7fb4,
+  roughness: 0.16,
   metalness: 0,
-  clearcoat: 0.82,
-  clearcoatRoughness: 0.12,
+  clearcoat: 0.90,
+  clearcoatRoughness: 0.09,
 });
-const pillarAccentMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
-  roughness: 0.24,
-  metalness: 0,
-  clearcoat: 0.56,
-  clearcoatRoughness: 0.18,
-});
-const pillarPawMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff78ad,
+const pillarMintMat = new THREE.MeshPhysicalMaterial({
+  color: 0x9df2c0,
   roughness: 0.18,
   metalness: 0,
-  clearcoat: 0.72,
+  clearcoat: 0.86,
+  clearcoatRoughness: 0.10,
+});
+const pillarGoldMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffd968,
+  roughness: 0.18,
+  metalness: 0,
+  clearcoat: 0.74,
   clearcoatRoughness: 0.12,
 });
+const pillarCreamMat = new THREE.MeshPhysicalMaterial({
+  color: 0xfffbf2,
+  roughness: 0.22,
+  metalness: 0,
+  clearcoat: 0.62,
+  clearcoatRoughness: 0.16,
+});
+const pillarDarkMat = new THREE.MeshStandardMaterial({ color: 0x6d3a32, roughness: 0.42 });
 
 const pillarCore = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 86, 48),
+  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 86, 56),
   pillarBodyMat,
 );
 pillarCore.position.y = -22;
@@ -202,45 +210,99 @@ pillarCore.receiveShadow = true;
 pillarCore.castShadow = false;
 pillarVisual.add(pillarCore);
 
-// Alternating candy rings make the tower readable without using a stretched bitmap.
-for (let y = -42; y <= 20; y += 2.64) {
+// Thick candy collars make the tower immediately read as a designed object.
+for (let y = -42; y <= 20; y += 2.73) {
+  const idx = Math.round((y + 42) / 2.73);
+  const ringMat = idx % 3 === 0 ? pillarPinkMat : (idx % 3 === 1 ? pillarMintMat : pillarGoldMat);
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.015, 0.064, 10, 48),
-    Math.round((y + 42) / 2.64) % 2 ? pillarRingMat : pillarAccentMat,
+    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.018, idx % 3 === 0 ? 0.085 : 0.060, 12, 56),
+    ringMat,
   );
   ring.rotation.x = Math.PI / 2;
   ring.position.y = y;
   pillarVisual.add(ring);
 }
 
-// Small crisp paw emblems repeat down the front/back of the column.
-const pawPadGeo = new THREE.SphereGeometry(0.13, 18, 14);
-const pawToeGeo = new THREE.SphereGeometry(0.052, 14, 10);
-function addPillarPaw(y, angle) {
-  const normal = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
-  const tangent = new THREE.Vector3(normal.z, 0, -normal.x);
-  const center = normal.clone().multiplyScalar(CONFIG.pillarRadius + 0.035);
-  center.y = y;
+const medallionBaseGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.075, 36);
+const faceGeo = new THREE.SphereGeometry(0.19, 24, 18);
+const eyeGeo = new THREE.SphereGeometry(0.027, 12, 10);
+const noseGeo = new THREE.SphereGeometry(0.022, 12, 10);
+const earGeo = new THREE.ConeGeometry(0.085, 0.16, 3);
+const pawPadGeo = new THREE.SphereGeometry(0.105, 18, 14);
+const pawToeGeo = new THREE.SphereGeometry(0.043, 14, 10);
 
-  const pad = new THREE.Mesh(pawPadGeo, pillarPawMat);
-  pad.position.copy(center);
-  pad.scale.set(1.15, 0.88, 0.34);
-  pad.lookAt(0, y, 0);
+function frontDisc(mesh, y, zExtra = 0) {
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.set(0, y, CONFIG.pillarRadius + 0.035 + zExtra);
+  pillarVisual.add(mesh);
+  return mesh;
+}
+
+function addCatMedallion(y) {
+  frontDisc(new THREE.Mesh(medallionBaseGeo, pillarPinkMat), y);
+
+  const face = new THREE.Mesh(faceGeo, pillarCreamMat);
+  face.position.set(0, y, CONFIG.pillarRadius + 0.105);
+  face.scale.set(1.03, 0.92, 0.30);
+  pillarVisual.add(face);
+
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(earGeo, pillarGoldMat);
+    ear.position.set(side * 0.13, y + 0.15, CONFIG.pillarRadius + 0.095);
+    ear.rotation.z = side * 0.11;
+    ear.scale.set(0.86, 0.86, 0.32);
+    pillarVisual.add(ear);
+
+    const eye = new THREE.Mesh(eyeGeo, pillarDarkMat);
+    eye.position.set(side * 0.075, y + 0.022, CONFIG.pillarRadius + 0.165);
+    pillarVisual.add(eye);
+  }
+
+  const nose = new THREE.Mesh(noseGeo, pillarPinkMat);
+  nose.position.set(0, y - 0.035, CONFIG.pillarRadius + 0.174);
+  pillarVisual.add(nose);
+}
+
+function addPawMedallion(y) {
+  frontDisc(new THREE.Mesh(medallionBaseGeo, pillarMintMat), y);
+
+  const pad = new THREE.Mesh(pawPadGeo, pillarPinkMat);
+  pad.position.set(0, y - 0.035, CONFIG.pillarRadius + 0.125);
+  pad.scale.set(1.18, 0.92, 0.34);
   pillarVisual.add(pad);
 
-  const toes = [[-0.11, 0.12], [-0.035, 0.17], [0.04, 0.17], [0.115, 0.11]];
-  for (const [tx, ty] of toes) {
-    const toe = new THREE.Mesh(pawToeGeo, pillarPawMat);
-    toe.position.copy(center).addScaledVector(tangent, tx);
-    toe.position.y += ty;
-    toe.scale.set(1, 0.9, 0.42);
-    toe.lookAt(0, toe.position.y, 0);
+  const toeOffsets = [
+    [-0.105, 0.095],
+    [-0.035, 0.135],
+    [0.035, 0.135],
+    [0.105, 0.095],
+  ];
+  for (const [x, dy] of toeOffsets) {
+    const toe = new THREE.Mesh(pawToeGeo, pillarPinkMat);
+    toe.position.set(x, y + dy, CONFIG.pillarRadius + 0.135);
+    toe.scale.set(1, 0.92, 0.38);
     pillarVisual.add(toe);
   }
 }
-for (let y = -38; y <= 18; y += 5.28) {
-  addPillarPaw(y, 0);
-  addPillarPaw(y + 2.64, Math.PI);
+
+// Oversized front-facing ornaments alternate down the endless column.
+// They are intentionally much larger than the previous tiny paw bumps.
+let ornamentIndex = 0;
+for (let y = -38.5; y <= 18; y += 4.55) {
+  if (ornamentIndex % 2 === 0) addCatMedallion(y);
+  else addPawMedallion(y);
+  ornamentIndex += 1;
+}
+
+// Small side candy studs add depth without crowding the gameplay area.
+const studGeo = new THREE.SphereGeometry(0.065, 14, 10);
+for (let y = -40; y <= 20; y += 2.73) {
+  for (const side of [-1, 1]) {
+    const stud = new THREE.Mesh(studGeo, side > 0 ? pillarPinkMat : pillarGoldMat);
+    stud.position.set(side * (CONFIG.pillarRadius + 0.025), y + 0.72, 0.06);
+    stud.scale.set(0.7, 1.0, 0.7);
+    pillarVisual.add(stud);
+  }
 }
 
 // Background decoration now comes from the actual jelly-paradise artwork.
