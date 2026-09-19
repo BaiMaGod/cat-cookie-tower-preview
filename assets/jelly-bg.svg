@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#68C9FF"/><stop offset=".58" stop-color="#BFEFFF"/><stop offset="1" stop-color="#FFE7F5"/></linearGradient>
+      <linearGradient id="island" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFDDA8"/><stop offset="1" stop-color="#D88A6D"/></linearGradient>
+      <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#B9FFC9"/><stop offset="1" stop-color="#4EDB7C"/></linearGradient>
+      <linearGradient id="pink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFB6D7"/><stop offset="1" stop-color="#F56EA9"/></linearGradient>
+      <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+      <filter id="shadow"><feDropShadow dy="5" stdDeviation="4" flood-color="#675A87" flood-opacity=".18"/></filter>
+    </defs>
+    <rect width="360" height="640" fill="url(#sky)"/>
+    <g opacity=".75" fill="#FFF"><ellipse cx="55" cy="74" rx="48" ry="19"/><ellipse cx="300" cy="105" rx="58" ry="22"/><ellipse cx="175" cy="180" rx="34" ry="12"/><ellipse cx="120" cy="410" rx="45" ry="15"/></g>
+    <g opacity=".5" filter="url(#blur)" fill="#FFF4FF"><circle cx="38" cy="310" r="40"/><circle cx="328" cy="340" r="45"/><circle cx="188" cy="548" r="52"/></g>
+    <path d="M-20 140q76-78 150 0" fill="none" stroke="#FFD6EB" stroke-width="10" opacity=".8"/><path d="M-20 140q76-70 150 0" fill="none" stroke="#FFE879" stroke-width="7" opacity=".8"/><path d="M230 240q65-62 145 0" fill="none" stroke="#E3C3FF" stroke-width="10" opacity=".65"/>
+    <g filter="url(#shadow)">
+      <g transform="translate(-30 210)"><path d="M0 0h120l-15 68-35 24-36-20z" fill="url(#island)"/><ellipse cx="58" cy="0" rx="70" ry="25" fill="#FFE9B9"/><ellipse cx="33" cy="-10" rx="15" ry="22" fill="url(#mint)"/><ellipse cx="70" cy="-13" rx="18" ry="25" fill="url(#pink)"/><path d="M48 12v54" stroke="#A6ECFF" stroke-width="8" opacity=".9"/></g>
+      <g transform="translate(285 280)"><path d="M0 0h100l-12 60-30 20-32-16z" fill="url(#island)"/><ellipse cx="46" cy="0" rx="62" ry="22" fill="#FFE9B9"/><ellipse cx="24" cy="-10" rx="14" ry="20" fill="url(#mint)"/><ellipse cx="62" cy="-14" rx="16" ry="23" fill="url(#pink)"/><path d="M42 10v48" stroke="#A6ECFF" stroke-width="7"/></g>
+      <g transform="translate(-18 500)"><path d="M0 0h108l-12 58-35 20-30-18z" fill="url(#island)"/><ellipse cx="48" cy="0" rx="64" ry="22" fill="#FFE9B9"/><ellipse cx="24" cy="-12" rx="15" ry="22" fill="url(#pink)"/><ellipse cx="64" cy="-10" rx="17" ry="24" fill="url(#mint)"/></g>
+      <g transform="translate(285 520)"><path d="M0 0h100l-12 52-28 18-30-15z" fill="url(#island)"/><ellipse cx="44" cy="0" rx="60" ry="20" fill="#FFE9B9"/><ellipse cx="20" cy="-10" rx="14" ry="20" fill="url(#mint)"/><ellipse cx="60" cy="-10" rx="17" ry="23" fill="url(#pink)"/></g>
+    </g>
+    <g fill="#FFF7FF" opacity=".9"><circle cx="34" cy="610" r="38"/><circle cx="83" cy="620" r="48"/><circle cx="286" cy="616" r="46"/><circle cx="342" cy="610" r="42"/></g>
+    <g fill="#FFFBD4"><path d="m82 130 3 10 10 3-10 3-3 10-3-10-10-3 10-3z"/><path d="m290 175 3 10 10 3-10 3-3 10-3-10-10-3 10-3z"/><path d="m182 328 2 8 8 2-8 2-2 8-2-8-8-2 8-2z"/></g>
+    <g fill="#FF8DB9" opacity=".85"><path d="M45 370c-13-15-31 4-8 22 23-18 5-37-8-22z"/><path d="M318 430c-13-15-31 4-8 22 23-18 5-37-8-22z"/></g>
+  </svg>
