@@ -43,7 +43,7 @@ function showBootError(err) {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./main.js');
+  await import('./main.js?v=238');
 } catch (err) {
   console.error(err);
   showBootError(err);
