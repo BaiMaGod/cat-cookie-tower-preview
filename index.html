@@ -3,52 +3,55 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#f6c77f" />
+  <meta name="theme-color" content="#8ddcff" />
   <title>猫咪果冻塔</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div id="game"></div>
+  <main id="phoneFrame" class="phone-frame">
+    <div id="game"></div>
+    <img id="catSprite" class="cat-sprite" src="./assets/cat-idle.svg" alt="" />
 
-  <div id="hud" class="hud">
-    <div class="stat">
-      <img class="hud-icon" src="./assets/icon-depth.svg" alt="" />
-      <span class="stat-copy"><span class="label">层数</span><strong id="depth">0</strong></span>
-    </div>
-    <div id="jumpBox" class="jump-box">
-      <img class="hud-icon bounce" src="./assets/icon-bounce.svg" alt="" />
-      <span class="stat-copy"><span class="label">弹跳</span><strong id="jumps">× 5</strong></span>
-    </div>
-    <div class="stat right">
-      <img class="hud-icon" src="./assets/icon-score.svg" alt="" />
-      <span class="stat-copy"><span class="label">分数</span><strong id="score">0</strong></span>
-    </div>
-  </div>
-
-  <div id="combo" class="combo">连吃 ×2</div>
-  <div id="toast" class="toast">左右滑动旋转果冻塔</div>
-
-  <div id="gameOver" class="overlay hidden">
-    <div class="card">
-      <div id="deathEmoji" class="death-emoji">😿</div>
-      <h1 id="deathTitle">没力气啦！</h1>
-      <p id="deathText">猫咪没力气啦，多吃几层果冻补充弹跳。</p>
-      <div class="results">
-        <div><span>下坠</span><strong id="finalDepth">0 层</strong></div>
-        <div><span>最高连吃</span><strong id="finalCombo">×0</strong></div>
-        <div><span>得分</span><strong id="finalScore">0</strong></div>
+    <div id="hud" class="hud">
+      <div class="hud-card stat">
+        <img class="hud-icon" src="./assets/icon-depth.svg" alt="" />
+        <span class="stat-copy"><span class="label">层数</span><strong id="depth">0</strong></span>
       </div>
-      <button id="restartBtn">再来一次</button>
+      <div id="jumpBox" class="hud-card jump-box">
+        <img class="hud-icon bounce" src="./assets/icon-bounce.svg" alt="" />
+        <span class="stat-copy"><span class="label">弹跳</span><strong id="jumps">× 5</strong></span>
+      </div>
+      <div class="hud-card stat right">
+        <img class="hud-icon" src="./assets/icon-score.svg" alt="" />
+        <span class="stat-copy"><span class="label">分数</span><strong id="score">0</strong></span>
+      </div>
     </div>
-  </div>
 
-  <div id="loading" class="overlay loading">
-    <div class="loader-card">
-      <img class="loader-cat" src="./assets/cat-idle.svg" alt="" />
-      <h1>猫咪果冻塔</h1>
-      <p>正在进入果冻乐园……</p>
+    <div id="combo" class="combo">连吃 ×2</div>
+    <div id="toast" class="toast">左右滑动旋转果冻塔</div>
+
+    <div id="gameOver" class="overlay hidden">
+      <div class="card">
+        <div id="deathEmoji" class="death-emoji">😿</div>
+        <h1 id="deathTitle">没力气啦！</h1>
+        <p id="deathText">多吃几层果冻，补充弹跳次数。</p>
+        <div class="results">
+          <div><span>下坠</span><strong id="finalDepth">0 层</strong></div>
+          <div><span>最高连吃</span><strong id="finalCombo">×0</strong></div>
+          <div><span>得分</span><strong id="finalScore">0</strong></div>
+        </div>
+        <button id="restartBtn">再来一次</button>
+      </div>
     </div>
-  </div>
+
+    <div id="loading" class="overlay loading">
+      <div class="loader-card">
+        <img class="loader-cat" src="./assets/cat-idle.svg" alt="" />
+        <h1>猫咪果冻塔</h1>
+        <p>正在进入果冻乐园……</p>
+      </div>
+    </div>
+  </main>
 
   <script type="module" src="./src/boot.js"></script>
 </body>
