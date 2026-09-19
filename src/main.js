@@ -163,30 +163,58 @@ const dangerSpriteMat = new THREE.SpriteMaterial({
 // a plain procedural cylinder with a few rings.
 const pillarVisual = new THREE.Group();
 scene.add(pillarVisual);
-const pillarPlaneGeo = new THREE.PlaneGeometry(2.02, 4.85);
+const pillarBodyMat = new THREE.MeshPhysicalMaterial({
+  color: 0xfff1dd,
+  roughness: 0.34,
+  metalness: 0,
+  clearcoat: 0.42,
+  clearcoatRoughness: 0.24,
+});
+const pillarRingMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff94c4,
+  roughness: 0.22,
+  clearcoat: 0.72,
+  clearcoatRoughness: 0.16,
+});
+const pillarCore = new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.96, CONFIG.pillarRadius * 0.96, 82, 40),
+  pillarBodyMat,
+);
+pillarCore.position.y = -20;
+pillarCore.receiveShadow = true;
+pillarVisual.add(pillarCore);
+
+// The source pillar art has wide transparent margins. Scale the plane by the
+// alpha-visible width rather than by its full canvas, otherwise it appears
+// only ~40% as wide as intended and disappears behind the jelly blocks.
+const pillarPlaneGeo = new THREE.PlaneGeometry(4.25, 5.67);
 const pillarPlaneMat = new THREE.MeshBasicMaterial({
   map: pillarTexture,
   transparent: true,
   alphaTest: 0.02,
   depthTest: true,
-  depthWrite: true,
+  depthWrite: false,
   side: THREE.DoubleSide,
 });
 for (let i = -8; i <= 8; i++) {
   const plane = new THREE.Mesh(pillarPlaneGeo, pillarPlaneMat);
-  plane.position.set(0, i * 4.45, -0.03);
-  plane.renderOrder = 1;
+  plane.position.set(0, i * 5.25, CONFIG.pillarRadius * 0.97);
+  plane.renderOrder = 3;
   pillarVisual.add(plane);
 }
 
-// Invisible-ish physical core preserves depth ordering behind the art pillar.
-const pillarCore = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.94, CONFIG.pillarRadius * 0.94, 78, 32),
-  new THREE.MeshStandardMaterial({ color: 0xffecd0, roughness: 0.55, transparent: true, opacity: 0.12 }),
-);
-pillarCore.position.y = -20;
-pillarCore.receiveShadow = false;
-pillarVisual.add(pillarCore);
+// Add real 3D candy rings so the column stays readable even when the
+// transparent artwork is partly occluded by a foreground jelly layer.
+for (let y = -38; y <= 20; y += 2.62) {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(CONFIG.pillarRadius * 0.98, 0.055, 10, 40),
+    pillarRingMat,
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = y;
+  ring.renderOrder = 2;
+  pillarVisual.add(ring);
+}
 
 // Background decoration now comes from the actual jelly-paradise artwork.
 const decoGroup = new THREE.Group();
@@ -842,7 +870,7 @@ function updateCamera(dt) {
   camera.lookAt(0, cameraFocusY - 0.34, 1.15);
 
   // Recycle the decorative pillar so the candy column never ends.
-  pillarVisual.position.y = cameraFocusY - 0.9;
+  pillarVisual.position.y = cameraFocusY - 0.35;
   decoGroup.position.y = cameraFocusY * 0.40;
 }
 
