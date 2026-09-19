@@ -27,12 +27,12 @@ const CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
   layerGap: 1.82,
-  platformRadius: 3.38,
+  platformRadius: 2.78,
   platformThickness: 0.58,
   pillarRadius: 0.92,
   catRadius: 0.31,
   catRadiusAtMax: 0.37,
-  catZ: 2.78,
+  catZ: 2.30,
   gravity: -10.2,
   jumpVelocity: 5.25,
   landingPause: 0.08,
@@ -94,7 +94,6 @@ function loadArtTexture(url) {
 
 const safeJellyTexture = loadArtTexture('./assets/jelly-safe.webp');
 const dangerJellyTexture = loadArtTexture('./assets/jelly-danger.webp');
-const pillarTexture = loadArtTexture('./assets/pillar.webp');
 const jellyBurstTexture = loadArtTexture('./assets/jelly-burst.svg');
 
 const matCookie = new THREE.MeshPhysicalMaterial({
@@ -159,61 +158,89 @@ const dangerSpriteMat = new THREE.SpriteMaterial({
   depthWrite: false,
 });
 
-// The decorative pillar now uses the approved production art instead of
-// a plain procedural cylinder with a few rings.
+// Crisp candy pillar: rendered entirely with 3D geometry so it stays sharp
+// at every phone resolution. The previous oversized bitmap billboard was the
+// reason the column looked soft/blurry.
 const pillarVisual = new THREE.Group();
 scene.add(pillarVisual);
+
 const pillarBodyMat = new THREE.MeshPhysicalMaterial({
-  color: 0xfff1dd,
-  roughness: 0.34,
+  color: 0xfff3de,
+  roughness: 0.30,
   metalness: 0,
-  clearcoat: 0.42,
-  clearcoatRoughness: 0.24,
+  clearcoat: 0.48,
+  clearcoatRoughness: 0.20,
 });
 const pillarRingMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff94c4,
-  roughness: 0.22,
-  clearcoat: 0.72,
-  clearcoatRoughness: 0.16,
+  color: 0xff8fbe,
+  roughness: 0.20,
+  metalness: 0,
+  clearcoat: 0.82,
+  clearcoatRoughness: 0.12,
 });
+const pillarAccentMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  roughness: 0.24,
+  metalness: 0,
+  clearcoat: 0.56,
+  clearcoatRoughness: 0.18,
+});
+const pillarPawMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff78ad,
+  roughness: 0.18,
+  metalness: 0,
+  clearcoat: 0.72,
+  clearcoatRoughness: 0.12,
+});
+
 const pillarCore = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.96, CONFIG.pillarRadius * 0.96, 82, 40),
+  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 86, 48),
   pillarBodyMat,
 );
-pillarCore.position.y = -20;
+pillarCore.position.y = -22;
 pillarCore.receiveShadow = true;
+pillarCore.castShadow = false;
 pillarVisual.add(pillarCore);
 
-// The source pillar art has wide transparent margins. Scale the plane by the
-// alpha-visible width rather than by its full canvas, otherwise it appears
-// only ~40% as wide as intended and disappears behind the jelly blocks.
-const pillarPlaneGeo = new THREE.PlaneGeometry(4.25, 5.67);
-const pillarPlaneMat = new THREE.MeshBasicMaterial({
-  map: pillarTexture,
-  transparent: true,
-  alphaTest: 0.02,
-  depthTest: true,
-  depthWrite: false,
-  side: THREE.DoubleSide,
-});
-for (let i = -8; i <= 8; i++) {
-  const plane = new THREE.Mesh(pillarPlaneGeo, pillarPlaneMat);
-  plane.position.set(0, i * 5.25, CONFIG.pillarRadius * 0.97);
-  plane.renderOrder = 3;
-  pillarVisual.add(plane);
-}
-
-// Add real 3D candy rings so the column stays readable even when the
-// transparent artwork is partly occluded by a foreground jelly layer.
-for (let y = -38; y <= 20; y += 2.62) {
+// Alternating candy rings make the tower readable without using a stretched bitmap.
+for (let y = -42; y <= 20; y += 2.64) {
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(CONFIG.pillarRadius * 0.98, 0.055, 10, 40),
-    pillarRingMat,
+    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.015, 0.064, 10, 48),
+    Math.round((y + 42) / 2.64) % 2 ? pillarRingMat : pillarAccentMat,
   );
   ring.rotation.x = Math.PI / 2;
   ring.position.y = y;
-  ring.renderOrder = 2;
   pillarVisual.add(ring);
+}
+
+// Small crisp paw emblems repeat down the front/back of the column.
+const pawPadGeo = new THREE.SphereGeometry(0.13, 18, 14);
+const pawToeGeo = new THREE.SphereGeometry(0.052, 14, 10);
+function addPillarPaw(y, angle) {
+  const normal = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+  const tangent = new THREE.Vector3(normal.z, 0, -normal.x);
+  const center = normal.clone().multiplyScalar(CONFIG.pillarRadius + 0.035);
+  center.y = y;
+
+  const pad = new THREE.Mesh(pawPadGeo, pillarPawMat);
+  pad.position.copy(center);
+  pad.scale.set(1.15, 0.88, 0.34);
+  pad.lookAt(0, y, 0);
+  pillarVisual.add(pad);
+
+  const toes = [[-0.11, 0.12], [-0.035, 0.17], [0.04, 0.17], [0.115, 0.11]];
+  for (const [tx, ty] of toes) {
+    const toe = new THREE.Mesh(pawToeGeo, pillarPawMat);
+    toe.position.copy(center).addScaledVector(tangent, tx);
+    toe.position.y += ty;
+    toe.scale.set(1, 0.9, 0.42);
+    toe.lookAt(0, toe.position.y, 0);
+    pillarVisual.add(toe);
+  }
+}
+for (let y = -38; y <= 18; y += 5.28) {
+  addPillarPaw(y, 0);
+  addPillarPaw(y + 2.64, Math.PI);
 }
 
 // Background decoration now comes from the actual jelly-paradise artwork.
@@ -309,8 +336,8 @@ function createJellyBlockGeometry(width, depth, height) {
   geo.computeVertexNormals();
   return geo;
 }
-const JELLY_RADIUS = 2.17;
-const jellyBlockGeo = createJellyBlockGeometry(1.18, 2.28, CONFIG.platformThickness);
+const JELLY_RADIUS = 1.84;
+const jellyBlockGeo = createJellyBlockGeometry(1.02, 1.72, CONFIG.platformThickness);
 const cookieChunkGeo = new THREE.BoxGeometry(0.24, 0.14, 0.22);
 const crumbGeo = new THREE.SphereGeometry(0.065, 8, 7);
 
@@ -368,7 +395,7 @@ function makeLayer(index) {
     // It carries the bubbles, glossy edge, paw imprint / poison skull.
     const art = new THREE.Sprite(type === 'hazard' ? dangerSpriteMat.clone() : safeSpriteMat.clone());
     art.position.set(0, CONFIG.platformThickness * 0.34, 0.04);
-    art.scale.set(type === 'hazard' ? 1.55 : 1.52, type === 'hazard' ? 1.55 : 1.52, 1);
+    art.scale.set(type === 'hazard' ? 1.28 : 1.24, type === 'hazard' ? 1.28 : 1.24, 1);
     art.material.rotation = -angle;
     art.renderOrder = 4;
     cell.add(art);
@@ -865,12 +892,12 @@ function updateCamera(dt) {
   const targetY = cat.root.position.y - 0.10;
   cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-9.0 * dt));
   camera.position.y = cameraFocusY + 4.55;
-  camera.position.x = 0.22;
-  camera.position.z = 9.65;
-  camera.lookAt(0, cameraFocusY - 0.34, 1.15);
+  camera.position.x = 0.16;
+  camera.position.z = 10.55;
+  camera.lookAt(0, cameraFocusY - 0.32, 1.02);
 
   // Recycle the decorative pillar so the candy column never ends.
-  pillarVisual.position.y = cameraFocusY - 0.35;
+  pillarVisual.position.y = cameraFocusY - 0.45;
   decoGroup.position.y = cameraFocusY * 0.40;
 }
 
