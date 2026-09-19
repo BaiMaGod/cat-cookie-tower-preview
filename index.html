@@ -4,26 +4,35 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#f6c77f" />
-  <title>猫咪饼干塔</title>
+  <title>猫咪果冻塔</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div id="game"></div>
 
   <div id="hud" class="hud">
-    <div class="stat"><span class="label">层数</span><strong id="depth">0</strong></div>
-    <div id="jumpBox" class="jump-box"><span class="paw">🐾</span><strong id="jumps">× 5</strong></div>
-    <div class="stat right"><span class="label">分数</span><strong id="score">0</strong></div>
+    <div class="stat">
+      <img class="hud-icon" src="./assets/icon-depth.webp" alt="" />
+      <span class="stat-copy"><span class="label">层数</span><strong id="depth">0</strong></span>
+    </div>
+    <div id="jumpBox" class="jump-box">
+      <img class="hud-icon bounce" src="./assets/icon-bounce.webp" alt="" />
+      <span class="stat-copy"><span class="label">弹跳</span><strong id="jumps">× 5</strong></span>
+    </div>
+    <div class="stat right">
+      <img class="hud-icon" src="./assets/icon-score.webp" alt="" />
+      <span class="stat-copy"><span class="label">分数</span><strong id="score">0</strong></span>
+    </div>
   </div>
 
   <div id="combo" class="combo">连吃 ×2</div>
-  <div id="toast" class="toast">左右滑动旋转饼干塔</div>
+  <div id="toast" class="toast">左右滑动旋转果冻塔</div>
 
   <div id="gameOver" class="overlay hidden">
     <div class="card">
       <div id="deathEmoji" class="death-emoji">😿</div>
       <h1 id="deathTitle">没力气啦！</h1>
-      <p id="deathText">猫咪饿瘪了，再吃几层就能续上。</p>
+      <p id="deathText">猫咪没力气啦，多吃几层果冻补充弹跳。</p>
       <div class="results">
         <div><span>下坠</span><strong id="finalDepth">0 层</strong></div>
         <div><span>最高连吃</span><strong id="finalCombo">×0</strong></div>
@@ -35,9 +44,9 @@
 
   <div id="loading" class="overlay loading">
     <div class="loader-card">
-      <div class="cat-mark">🐱🍪</div>
-      <h1>猫咪饼干塔</h1>
-      <p>正在准备饼干……</p>
+      <img class="loader-cat" src="./assets/cat-idle.webp" alt="" />
+      <h1>猫咪果冻塔</h1>
+      <p>正在进入果冻乐园……</p>
     </div>
   </div>
 
