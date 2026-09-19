@@ -48,9 +48,9 @@ body {
   position: absolute;
   z-index: 7;
   left: 50%;
-  top: 48%;
-  width: 94px;
-  height: 94px;
+  top: 47.5%;
+  width: 118px;
+  height: 118px;
   object-fit: contain;
   pointer-events: none;
   transform: translate(-50%,-50%);
@@ -226,6 +226,7 @@ button:active { transform: translateY(3px); box-shadow: 0 3px 0 #c9487d; }
 
 @media (max-width: 600px) {
   body { display:block; background:#8edcff; }
+  .cat-sprite { width: 108px; height: 108px; }
   .phone-frame {
     width: 100vw;
     height: 100dvh;
