@@ -40,22 +40,6 @@ body {
     radial-gradient(circle at 50% 48%, rgba(255,255,255,.04), rgba(107,208,255,.08) 72%);
 }
 
-.pillar-art-layer {
-  position: absolute;
-  z-index: 1;
-  top: -120px;
-  bottom: -120px;
-  left: 50%;
-  width: 178px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  background-image: url('./assets/pillar-candy-cat-v2.svg?v=237');
-  background-repeat: repeat-y;
-  background-position: center 0;
-  background-size: 100% auto;
-  filter: drop-shadow(0 8px 12px rgba(122, 73, 78, .22));
-  will-change: background-position;
-}
 #game, #game canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #game { z-index: 2; }
 #game canvas { touch-action: none; }
