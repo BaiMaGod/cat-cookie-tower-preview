@@ -7,7 +7,7 @@
 * { box-sizing: border-box; }
 html, body {
   width: 100%; height: 100%; margin: 0; overflow: hidden;
-  background: #bcecff url('./assets/jelly-bg.webp') center center / cover no-repeat fixed;
+  background: #bcecff url('./assets/jelly-bg.svg') center center / cover no-repeat fixed;
 }
 body { user-select: none; -webkit-user-select: none; touch-action: none; }
 #game, #game canvas { width: 100%; height: 100%; display: block; }
