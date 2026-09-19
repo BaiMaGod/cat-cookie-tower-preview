@@ -26,9 +26,9 @@ const hud = {
 const CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
-  layerGap: 1.88,
-  platformRadius: 3.62,
-  platformThickness: 0.50,
+  layerGap: 1.82,
+  platformRadius: 3.38,
+  platformThickness: 0.58,
   pillarRadius: 0.92,
   catRadius: 0.31,
   catRadiusAtMax: 0.37,
@@ -37,7 +37,7 @@ const CONFIG = Object.freeze({
   jumpVelocity: 5.25,
   landingPause: 0.08,
   dragTurnsPerScreen: 240 * Math.PI / 180,
-  sliceCount: 18,
+  sliceCount: 12,
   aheadLayers: 14,
   keepBehind: 5,
   cameraFollow: 6.1,
@@ -52,8 +52,8 @@ scene.fog = new THREE.Fog(0xdff7ff, 16, 36);
 
 const initialW = Math.max(gameEl.clientWidth, 320);
 const initialH = Math.max(gameEl.clientHeight, 568);
-const camera = new THREE.PerspectiveCamera(38, initialW / initialH, 0.1, 140);
-camera.position.set(0.65, 5.0, 21.0);
+const camera = new THREE.PerspectiveCamera(35, initialW / initialH, 0.1, 140);
+camera.position.set(0.22, 5.0, 9.8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -84,136 +84,120 @@ scene.add(fill);
 const towerRoot = new THREE.Group();
 scene.add(towerRoot);
 
+const textureLoader = new THREE.TextureLoader();
+function loadArtTexture(url) {
+  const tex = textureLoader.load(url);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return tex;
+}
+
+const safeJellyTexture = loadArtTexture('./assets/jelly-safe.webp');
+const dangerJellyTexture = loadArtTexture('./assets/jelly-danger.webp');
+const pillarTexture = loadArtTexture('./assets/pillar.webp');
+const jellyBurstTexture = loadArtTexture('./assets/jelly-burst.svg');
+
 const matCookie = new THREE.MeshPhysicalMaterial({
-  color: 0x86f2a7,
-  roughness: 0.16,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.04,
-  transmission: 0.18,
-  transparent: true,
-  opacity: 0.97,
-  thickness: 0.65,
-  ior: 1.36,
-  emissive: 0x184d2a,
-  emissiveIntensity: 0.05,
-});
-const matCookieAlt = new THREE.MeshPhysicalMaterial({
-  color: 0xb8f8c9,
-  roughness: 0.18,
+  color: 0x8bf4aa,
+  roughness: 0.12,
   metalness: 0,
   clearcoat: 1,
   clearcoatRoughness: 0.05,
-  transmission: 0.16,
+  transmission: 0.26,
   transparent: true,
-  opacity: 0.97,
-  thickness: 0.62,
-  ior: 1.36,
-  emissive: 0x225b33,
-  emissiveIntensity: 0.04,
+  opacity: 0.90,
+  thickness: 0.85,
+  ior: 1.34,
+  emissive: 0x123d23,
+  emissiveIntensity: 0.035,
 });
-const matHazard = new THREE.MeshPhysicalMaterial({
-  color: 0xd82d77,
-  roughness: 0.07,
+const matCookieAlt = new THREE.MeshPhysicalMaterial({
+  color: 0xb6f9c8,
+  roughness: 0.14,
   metalness: 0,
   clearcoat: 1,
-  clearcoatRoughness: 0.035,
-  transmission: 0.12,
+  clearcoatRoughness: 0.06,
+  transmission: 0.22,
   transparent: true,
-  opacity: 0.98,
-  thickness: 0.66,
-  ior: 1.38,
-  emissive: 0x65102e,
-  emissiveIntensity: 0.16,
+  opacity: 0.91,
+  thickness: 0.82,
+  ior: 1.34,
 });
-const matHazardTop = new THREE.MeshStandardMaterial({
-  color: 0xff679b,
-  roughness: 0.16,
-  emissive: 0x8a0d42,
-  emissiveIntensity: 0.24,
+const matHazard = new THREE.MeshPhysicalMaterial({
+  color: 0xd91f69,
+  roughness: 0.10,
+  metalness: 0,
+  clearcoat: 1,
+  clearcoatRoughness: 0.04,
+  transmission: 0.16,
+  transparent: true,
+  opacity: 0.94,
+  thickness: 0.90,
+  ior: 1.36,
+  emissive: 0x5a0827,
+  emissiveIntensity: 0.13,
 });
 const matChip = new THREE.MeshPhysicalMaterial({
-  color: 0xcffff0,
-  roughness: 0.04,
-  transmission: 0.12,
+  color: 0xd6ffe2,
+  roughness: 0.08,
+  transmission: 0.30,
   transparent: true,
-  opacity: 0.78,
+  opacity: 0.72,
   clearcoat: 1,
 });
-const matPillar = new THREE.MeshStandardMaterial({ color: 0xffefd4, roughness: 0.31 });
-const matPillarStripe = new THREE.MeshStandardMaterial({ color: 0xff90bd, roughness: 0.22, emissive: 0x52122f, emissiveIntensity: 0.04 });
-const matPillarCream = new THREE.MeshStandardMaterial({ color: 0xfffbf1, roughness: 0.25 });
-const matPaw = new THREE.MeshStandardMaterial({ color: 0xff79ad, roughness: 0.18, emissive: 0x54112f, emissiveIntensity: 0.06 });
 
-// The center pillar is a recycled visual segment that follows the camera vertically.
+const safeSpriteMat = new THREE.SpriteMaterial({
+  map: safeJellyTexture,
+  transparent: true,
+  depthTest: true,
+  depthWrite: false,
+});
+const dangerSpriteMat = new THREE.SpriteMaterial({
+  map: dangerJellyTexture,
+  transparent: true,
+  depthTest: true,
+  depthWrite: false,
+});
+
+// The decorative pillar now uses the approved production art instead of
+// a plain procedural cylinder with a few rings.
 const pillarVisual = new THREE.Group();
-towerRoot.add(pillarVisual);
+scene.add(pillarVisual);
+const pillarPlaneGeo = new THREE.PlaneGeometry(2.02, 4.85);
+const pillarPlaneMat = new THREE.MeshBasicMaterial({
+  map: pillarTexture,
+  transparent: true,
+  alphaTest: 0.02,
+  depthTest: true,
+  depthWrite: true,
+  side: THREE.DoubleSide,
+});
+for (let i = -8; i <= 8; i++) {
+  const plane = new THREE.Mesh(pillarPlaneGeo, pillarPlaneMat);
+  plane.position.set(0, i * 4.45, -0.03);
+  plane.renderOrder = 1;
+  pillarVisual.add(plane);
+}
 
-const pillar = new THREE.Mesh(
-  new THREE.CylinderGeometry(CONFIG.pillarRadius, CONFIG.pillarRadius, 70, 48),
-  matPillar,
+// Invisible-ish physical core preserves depth ordering behind the art pillar.
+const pillarCore = new THREE.Mesh(
+  new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.94, CONFIG.pillarRadius * 0.94, 78, 32),
+  new THREE.MeshStandardMaterial({ color: 0xffecd0, roughness: 0.55, transparent: true, opacity: 0.12 }),
 );
-pillar.receiveShadow = true;
-pillarVisual.add(pillar);
+pillarCore.position.y = -20;
+pillarCore.receiveShadow = false;
+pillarVisual.add(pillarCore);
 
-for (let y = -34.8, n = 0; y <= 34.8; y += 2.9, n++) {
-  const stripe = new THREE.Mesh(
-    new THREE.TorusGeometry(CONFIG.pillarRadius + 0.018, 0.072, 10, 48),
-    n % 2 ? matPillarStripe : matPillarCream,
-  );
-  stripe.rotation.x = Math.PI / 2;
-  stripe.position.y = y;
-  pillarVisual.add(stripe);
-}
-
-const pawPadGeo = new THREE.SphereGeometry(0.115, 14, 10);
-const pawToeGeo = new THREE.SphereGeometry(0.055, 12, 8);
-function addPawOrnament(y, angle) {
-  const g = new THREE.Group();
-  g.position.y = y;
-  g.rotation.y = angle;
-  const pad = new THREE.Mesh(pawPadGeo, matPaw);
-  pad.scale.set(1.25, 0.92, 0.34);
-  pad.position.set(0, 0, CONFIG.pillarRadius + 0.045);
-  g.add(pad);
-  const toeOffsets = [[-0.12,0.12],[-0.04,0.18],[0.05,0.18],[0.13,0.11]];
-  for (const [x, yy] of toeOffsets) {
-    const toe = new THREE.Mesh(pawToeGeo, matPaw);
-    toe.scale.set(1, 0.9, 0.32);
-    toe.position.set(x, yy, CONFIG.pillarRadius + 0.05);
-    g.add(toe);
-  }
-  pillarVisual.add(g);
-}
-for (let y = -31; y <= 31; y += 5.8) {
-  addPawOrnament(y, 0);
-  addPawOrnament(y + 2.9, Math.PI);
-}
-
-// Soft decorative jelly bubbles. They intentionally do not participate in gameplay.
+// Background decoration now comes from the actual jelly-paradise artwork.
 const decoGroup = new THREE.Group();
 scene.add(decoGroup);
-const decoGeo = new THREE.SphereGeometry(0.12, 8, 6);
-const decoMat = new THREE.MeshPhysicalMaterial({ color: 0xa5ffd0, roughness: 0.08, transmission: 0.25, transparent: true, opacity: 0.55, clearcoat: 1 });
-for (let i = 0; i < 28; i++) {
-  const m = new THREE.Mesh(decoGeo, decoMat);
-  const a = (i / 28) * TAU;
-  const r = 7 + (i % 4) * 0.8;
-  m.position.set(Math.sin(a) * r, 5 - i * 1.7, Math.cos(a) * r);
-  m.scale.setScalar(0.7 + (i % 3) * 0.28);
-  decoGroup.add(m);
-}
-
-const textureLoader = new THREE.TextureLoader();
-const jellyBurstTexture = textureLoader.load('./assets/jelly-burst.svg');
-jellyBurstTexture.colorSpace = THREE.SRGBColorSpace;
 
 const catSources = {
-  idle: './assets/cat-idle.svg',
-  fall: './assets/cat-fall.svg',
-  eat: './assets/cat-eat.svg',
-  squash: './assets/cat-squash.svg',
-  fail: './assets/cat-fail.svg',
+  idle: './assets/cat-idle.webp',
+  fall: './assets/cat-fall.webp',
+  eat: './assets/cat-fall.webp',
+  squash: './assets/cat-squash.webp',
+  fail: './assets/cat-fail.webp',
 };
 
 function createCat() {
@@ -259,46 +243,48 @@ let generator = new LayerGenerator((Date.now() ^ 0xA11CE) >>> 0);
 const layers = new Map();
 const effects = [];
 
-// Chunky annular jelly segment. Unlike a full pie slice, it leaves the pillar visible
-// and reads like the thick gummy blocks from the target art direction.
+// Large rounded jelly blocks: twelve chunky pieces around the tower, matching
+// the approved art direction instead of dozens of thin radial slivers.
 const SLICE = TAU / CONFIG.sliceCount;
-function createAnnularWedgeGeometry(innerR, outerR, height, angleWidth, steps = 3) {
-  const pos = [];
-  const idx = [];
-  const halfH = height / 2;
-  for (let j = 0; j <= steps; j++) {
-    const a = -angleWidth / 2 + (angleWidth * j / steps);
-    const s = Math.sin(a), c = Math.cos(a);
-    pos.push(innerR*s, -halfH, innerR*c, outerR*s, -halfH, outerR*c,
-             innerR*s,  halfH, innerR*c, outerR*s,  halfH, outerR*c);
-  }
-  for (let j = 0; j < steps; j++) {
-    const a=j*4, b=(j+1)*4;
-    idx.push(a+2,a+3,b+3, a+2,b+3,b+2); // top
-    idx.push(a,b+1,a+1, a,b,b+1);       // bottom
-    idx.push(a,a+2,b+2, a,b+2,b);       // inner
-    idx.push(a+1,b+1,b+3, a+1,b+3,a+3);// outer
-  }
-  const last=steps*4;
-  idx.push(0,1,3, 0,3,2);
-  idx.push(last,last+2,last+3, last,last+3,last+1);
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  return g;
+function roundedRectShape(width, depth, radius) {
+  const w = width / 2;
+  const d = depth / 2;
+  const r = Math.min(radius, w, d);
+  const s = new THREE.Shape();
+  s.moveTo(-w + r, -d);
+  s.lineTo(w - r, -d);
+  s.quadraticCurveTo(w, -d, w, -d + r);
+  s.lineTo(w, d - r);
+  s.quadraticCurveTo(w, d, w - r, d);
+  s.lineTo(-w + r, d);
+  s.quadraticCurveTo(-w, d, -w, d - r);
+  s.lineTo(-w, -d + r);
+  s.quadraticCurveTo(-w, -d, -w + r, -d);
+  s.closePath();
+  return s;
 }
-const wedgeGeo = createAnnularWedgeGeometry(
-  CONFIG.pillarRadius + 0.10,
-  CONFIG.platformRadius,
-  CONFIG.platformThickness,
-  SLICE * 0.92,
-  4,
-);
-const chipGeo = new THREE.SphereGeometry(0.075, 9, 7);
-const hazardBumpGeo = new THREE.SphereGeometry(0.105, 14, 10);
-const cookieChunkGeo = new THREE.BoxGeometry(0.22, 0.11, 0.17);
-const crumbGeo = new THREE.SphereGeometry(0.055, 8, 7);
+function createJellyBlockGeometry(width, depth, height) {
+  const geo = new THREE.ExtrudeGeometry(
+    roundedRectShape(width, depth, 0.22),
+    {
+      depth: height,
+      steps: 1,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      bevelSize: 0.075,
+      bevelThickness: 0.075,
+      curveSegments: 7,
+    },
+  );
+  geo.rotateX(Math.PI / 2);
+  geo.translate(0, height / 2, 0);
+  geo.computeVertexNormals();
+  return geo;
+}
+const JELLY_RADIUS = 2.17;
+const jellyBlockGeo = createJellyBlockGeometry(1.18, 2.28, CONFIG.platformThickness);
+const cookieChunkGeo = new THREE.BoxGeometry(0.24, 0.14, 0.22);
+const crumbGeo = new THREE.SphereGeometry(0.065, 8, 7);
 
 function arcType(layerData, angle) {
   if (layerData.gaps.some((g) => angleInArc(angle, g.start, g.width))) return 'gap';
@@ -336,50 +322,39 @@ function makeLayer(index) {
       renderedGapSlices += 1;
       continue;
     }
-    const material = type === 'hazard' ? matHazard : (i % 2 ? matCookie : matCookieAlt);
-    const seg = new THREE.Mesh(wedgeGeo, material);
-    seg.rotation.y = angle;
-    seg.castShadow = false;
-    seg.receiveShadow = true;
-    group.add(seg);
-    segments.push(seg);
 
-    if (type === 'hazard' && i % 2 === 0) {
-      const spike = new THREE.Mesh(hazardBumpGeo, matHazardTop);
-      const rr = 2.35;
-      spike.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.10, Math.cos(angle) * rr);
-      spike.scale.set(1.0, 0.72, 1.0);
-      group.add(spike);
-    }
+    const cell = new THREE.Group();
+    cell.position.set(Math.sin(angle) * JELLY_RADIUS, 0, Math.cos(angle) * JELLY_RADIUS);
+    cell.rotation.y = angle;
+    group.add(cell);
+
+    const base = new THREE.Mesh(
+      jellyBlockGeo,
+      type === 'hazard' ? matHazard : (i % 2 ? matCookie : matCookieAlt),
+    );
+    base.castShadow = false;
+    base.receiveShadow = true;
+    cell.add(base);
+
+    // Actual approved jelly artwork is layered on top of the physical block.
+    // It carries the bubbles, glossy edge, paw imprint / poison skull.
+    const art = new THREE.Sprite(type === 'hazard' ? dangerSpriteMat.clone() : safeSpriteMat.clone());
+    art.position.set(0, CONFIG.platformThickness * 0.34, 0.04);
+    art.scale.set(type === 'hazard' ? 1.55 : 1.52, type === 'hazard' ? 1.55 : 1.52, 1);
+    art.material.rotation = -angle;
+    art.renderOrder = 4;
+    cell.add(art);
+
+    segments.push(cell);
   }
 
-  // This should be impossible after snapping, but keep a runtime guard so a
-  // fully closed cookie layer can never silently enter gameplay.
   if (renderedGapSlices < requiredGapSlices) {
     console.error('Invalid jelly layer: visible gap missing', { index, renderedGapSlices, requiredGapSlices, data });
     towerRoot.remove(group);
     return makeLayer(index);
   }
 
-  // A few embedded bubbles give the thick pieces the glossy jelly look from the target mockup.
-  for (let c = 0; c < 6; c++) {
-    const angle = normalizeAngle(data.primaryAngle + 0.72 + c * 1.05);
-    const type = arcType(data, angle);
-    if (type === 'gap') continue;
-    const rr = 1.65 + (c % 3) * 0.73;
-    const bubble = new THREE.Mesh(chipGeo, type === 'hazard' ? matHazardTop : matChip);
-    bubble.position.set(Math.sin(angle) * rr, CONFIG.platformThickness / 2 + 0.085, Math.cos(angle) * rr);
-    bubble.scale.setScalar(0.72 + (c % 2) * 0.34);
-    group.add(bubble);
-  }
-
-  const layer = {
-    index,
-    data,
-    group,
-    segments,
-    eaten: false,
-  };
+  const layer = { index, data, group, segments, eaten: false };
   layers.set(index, layer);
   return layer;
 }
@@ -861,13 +836,13 @@ let cameraFocusY = 0;
 function updateCamera(dt) {
   const targetY = cat.root.position.y - 0.10;
   cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-9.0 * dt));
-  camera.position.y = cameraFocusY + 4.35;
-  camera.position.x = 0.34;
-  camera.position.z = 11.8;
-  camera.lookAt(0, cameraFocusY - 0.30, 0);
+  camera.position.y = cameraFocusY + 4.55;
+  camera.position.x = 0.22;
+  camera.position.z = 9.65;
+  camera.lookAt(0, cameraFocusY - 0.34, 1.15);
 
   // Recycle the decorative pillar so the candy column never ends.
-  pillarVisual.position.y = cameraFocusY - 1.3;
+  pillarVisual.position.y = cameraFocusY - 0.9;
   decoGroup.position.y = cameraFocusY * 0.40;
 }
 
