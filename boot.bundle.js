@@ -1,3 +1,4 @@
+/* production preview bootstrap; no sourcemap */
 const loadingEl = document.getElementById('loading');
 
 const sources = [
@@ -43,7 +44,7 @@ function showBootError(err) {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./main.js?v=238');
+  await import('./game.bundle.js?v=239');
 } catch (err) {
   console.error(err);
   showBootError(err);

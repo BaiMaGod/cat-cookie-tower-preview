@@ -1,4 +1,4 @@
-name: Deploy static content to Pages
+name: Deploy preview site
 
 on:
   push:
@@ -21,14 +21,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout preview artifacts
         uses: actions/checkout@v6
+      - name: Stage public files only
+        run: |
+          mkdir -p _site
+          cp index.html app.css boot.bundle.js game.bundle.js _site/
+          cp -R assets _site/assets
+          touch _site/.nojekyll
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Upload artifact
+      - name: Upload preview artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: "."
+          path: "_site"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
