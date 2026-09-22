@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#8ddcff" />
   <title>胖猫跳跳塔 · 果冻乐园</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./app.css?v=f304081" />
+  <link rel="stylesheet" href="./app.css?v=310" />
 </head>
 <body>
   <main id="phoneFrame" class="phone-frame">
@@ -15,11 +15,11 @@
 
     <div id="hud" class="hud">
       <div class="hud-card stat">
-        <img class="hud-icon" src="./assets/icon-depth.svg" alt="" />
+        <img class="hud-icon" src="./assets/ui-depth.png" alt="" />
         <span class="stat-copy"><span class="label">层数</span><strong id="depth">0</strong></span>
       </div>
       <div id="jumpBox" class="hud-card jump-box">
-        <img class="hud-icon bounce" src="./assets/icon-bounce.svg" alt="" />
+        <img class="hud-icon bounce" src="./assets/ui-bounce.png" alt="" />
         <span class="stat-copy"><span class="label">弹跳</span><strong id="jumps">× 5</strong></span>
       </div>
       <div class="hud-card stat right">
@@ -30,20 +30,31 @@
 
     <div id="combo" class="combo">连吃 ×2</div>
     <div class="world-label" aria-hidden="true">✦ 果冻乐园 ✦</div>
-    <div id="toast" class="toast"><span class="swipe-hint">‹ <i></i> ›</span><strong>左右滑动，旋转果冻塔</strong><small>对准缺口往下跳 · 连吃果冻补充弹跳</small></div>
+    <div id="toast" class="toast">
+      <div class="gesture-badge" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><path class="gesture-arrows" d="M8 21h13m-8-5-5 5 5 5m43-5H43m8-5 5 5-5 5" />
+          <g class="gesture-hand"><path d="M25 38V21c0-6 8-6 8 0v12-5c0-5 7-5 7 0v5-2c0-4 7-4 7 0v10c0 10-6 16-14 16-5 0-8-3-11-7l-7-10c-3-5 2-9 6-5l4 3Z" /></g>
+        </svg>
+      </div>
+      <div class="gesture-copy"><span class="guide-kicker">小爪爪，准备好了吗？</span><strong>左右滑动，转动果冻塔</strong><small>找准缺口，让胖猫一路往下跳</small></div>
+      <div class="guide-reward"><span>✦</span> 连吃果冻，补充弹跳 <b>＋1</b></div>
+    </div>
 
-    <div id="gameOver" class="overlay hidden">
-      <div class="card">
+    <div id="gameOver" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="deathTitle">
+      <div class="card result-card">
+        <div class="result-content">
         <img class="result-cat" src="./assets/cat-fail-hd.png" alt="" />
         <div id="deathEmoji" class="death-emoji" hidden>😿</div>
+        <span class="result-kicker">本 次 冒 险 结 束</span>
         <h1 id="deathTitle">没力气啦！</h1>
         <p id="deathText">多吃几层果冻，补充弹跳次数。</p>
         <div class="results">
-          <div><span>下坠</span><strong id="finalDepth">0 层</strong></div>
+          <div><span>下降层数</span><strong id="finalDepth">0 层</strong></div>
           <div><span>最高连吃</span><strong id="finalCombo">×0</strong></div>
           <div><span>得分</span><strong id="finalScore">0</strong></div>
         </div>
-        <button id="restartBtn">再来一次</button>
+        <button id="restartBtn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 7a8 8 0 1 0 1 9M19 3v5h-5" /></svg><span>再来一次</span></button>
+        </div>
       </div>
     </div>
 
@@ -56,6 +67,6 @@
     </div>
   </main>
 
-  <script type="module" src="./boot.bundle.js?v=f304081"></script>
+  <script type="module" src="./boot.bundle.js?v=310"></script>
 </body>
 </html>

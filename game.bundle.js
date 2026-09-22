@@ -1,4 +1,6 @@
-/* Built from BaiMaGod/cat-cookie-tower@f304081d56c776bf6a7cd2a697446e48e9596b4b. No sourcemap. */
+/* cat-cookie-tower v3.1.0 production preview | source c5bdd520 | no sourcemap */
+const THREE = globalThis.__THREE__;
+if (!THREE) throw new Error('Three.js 未加载');
 const TAU = Math.PI * 2;
 
 function normalizeAngle(a) {
@@ -16,6 +18,7 @@ function angleInArc(angle, start, width) {
 // Split at every gameplay boundary before adding cosmetic seams. Visible poison
 // and openings therefore have exactly the same angular extent as collisions.
 function platformSpans(data, maxSpan = Math.PI / 3) {
+  if (data.blocks) return data.blocks.map(block => ({ ...block }));
   const boundaries = [0, TAU];
   for (const arc of [...data.gaps, ...data.hazards]) {
     boundaries.push(normalizeAngle(arc.start), normalizeAngle(arc.start + arc.width));
@@ -32,10 +35,15 @@ function platformSpans(data, maxSpan = Math.PI / 3) {
     if (last?.type === type) last.width += width;
     else runs.push({ start, width, type });
   }
+  // Zero is only a coordinate seam, not a physical cut in a jelly block.
+  if (runs.length > 1 && runs[0].type === runs.at(-1).type) {
+    const first = runs.shift();
+    runs.at(-1).width += first.width;
+  }
   return runs.flatMap(run => {
     const count = run.type === 'gap' ? 1 : Math.ceil(run.width / maxSpan);
     return Array.from({ length: count }, (_, i) => ({
-      start: run.start + run.width * i / count, width: run.width / count, type: run.type,
+      start: normalizeAngle(run.start + run.width * i / count), width: run.width / count, type: run.type,
     }));
   });
 }
@@ -188,32 +196,34 @@ class LayerGenerator {
 
     let hazardRatio = hazardRatioForDepth(depth);
     if (lowJumps) hazardRatio *= 0.7;
-    const hazards = [];
-    if (hazardRatio > 0) {
-      const target = hazardRatio * TAU;
-      let built = 0;
-      for (let i = 0; i < 8 && built < target; i++) {
-        const w = Math.min(target - built, this.rng.range(0.18, 0.45));
-        const start = this.rng.range(0, TAU);
-        // Keep hazards away from gap centers by sampling the midpoint.
-        const mid = normalizeAngle(start + w / 2);
-        if (!gaps.some(g => angleInArc(mid, g.start - 0.10, g.width + 0.20))) {
-          hazards.push({ start, width: w });
-          built += w;
-        }
-      }
+    // Partition solid runs first, then turn complete blocks into poison. Both
+    // rendering and collision use these exact intervals, including across zero.
+    const blocks = platformSpans({ gaps, hazards: [] });
+    const solid = blocks.filter(b => b.type === 'safe');
+    const largest = Math.max(...solid.map(b => b.width));
+    const candidates = solid.filter(b => Math.abs(b.width - largest) < 1e-8);
+    const count = hazardRatio > 0 ? Math.min(candidates.length, solid.length - 1,
+      Math.max(1, Math.round(hazardRatio * TAU / largest))) : 0;
+    for (let i = 0; i < count; i++) {
+      const index = this.rng.int(0, candidates.length - 1);
+      candidates.splice(index, 1)[0].type = 'hazard';
     }
-
-    return { depth, gaps, hazards, chain, primaryAngle, width };
+    const hazards = blocks.filter(b => b.type === 'hazard').map(({ start, width }) => ({ start, width }));
+    return { depth, gaps, hazards, blocks, chain, primaryAngle, width };
   }
 }
 
-const THREE = globalThis.__THREE__;
-const TAU = Math.PI * 2;
+const JELLY_CONTACT_TIME = Math.PI / 20;
+
+// Positive compression, a small overshoot, then decay to the exact rest shape.
+function jellyCompression(time, strength) {
+  if (time < 0 || time >= .9) return 0;
+  return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
+}
 
 // Stylized jelly: opaque depth gives stable overlapping rings on mobile, while
 // rim lighting, embedded bubbles and reflection bands suggest a translucent sweet.
-function jellyMaterial(danger = false) {
+function createClassicMaterial(danger = false) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTop: { value: new THREE.Color(danger ? '#f52280' : '#74ef8a') },
@@ -290,6 +300,145 @@ function jellyMaterial(danger = false) {
   });
 }
 
+// Physical reflections and absorption, without a luminous outline or painted circles.
+function createCandyJellyMaterial(config, danger = false) {
+  const material = new THREE.MeshPhysicalMaterial({
+    color: danger ? '#f51775' : '#99fa98', metalness: 0, roughness: .012, transmission: .91,
+    thickness: config.platformThickness * .55, ior: 1.22,
+    attenuationColor: danger ? '#760025' : '#31cc4c', attenuationDistance: danger ? .17 : .52,
+    clearcoat: .8, clearcoatRoughness: .035, envMapIntensity: 1.15,
+  });
+  material.userData.platformStyle = 'candy-jelly';
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = `attribute vec3 candyCoord; varying vec3 vCandy;\n${shader.vertexShader}`
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCandy = candyCoord;');
+    shader.fragmentShader = `varying vec3 vCandy;\n${shader.fragmentShader}`;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      float centerDepth = (1.0 - pow(abs(vCandy.x), 3.0)) * (1.0 - pow(abs(vCandy.z), 3.0));
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(${danger ? '.62, .30, .68' : '.64, .94, .63'}), centerDepth * .62);
+    `);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <transmission_fragment>',
+      THREE.ShaderChunk.transmission_fragment.replace('material.thickness = thickness;',
+        'material.thickness = thickness * (.38 + centerDepth * .92);'));
+  };
+  material.customProgramCacheKey = () => `volume-jelly-v2-${danger}`;
+  return material;
+}
+
+// Real sphere geometry, shaded as an air pocket. The jelly shell refracts it
+// through the shared transmission buffer; this is a stylized inclusion model.
+function createAirPocketMaterial(danger = false) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      body: { value: new THREE.Color(danger ? '#c50958' : '#65db6f') },
+      lightColor: { value: new THREE.Color(danger ? '#ff92bc' : '#e5ffc2') },
+    },
+    vertexShader: `
+      varying vec3 bubbleNormal;
+      varying vec3 bubbleEye;
+      void main() {
+        vec4 p = vec4(position, 1.0);
+        vec3 n = normal;
+        #ifdef USE_INSTANCING
+          p = instanceMatrix * p;
+          n = mat3(instanceMatrix) * n;
+        #endif
+        vec4 mv = modelViewMatrix * p;
+        bubbleNormal = normalize(normalMatrix * n);
+        bubbleEye = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 body, lightColor;
+      varying vec3 bubbleNormal, bubbleEye;
+      void main() {
+        vec3 n = normalize(bubbleNormal);
+        float facing = max(0.0, dot(n, normalize(bubbleEye)));
+        float rim = pow(1.0 - facing, 2.2);
+        float upperReflection = pow(max(0.0, dot(n, normalize(vec3(-.45,.65,.75)))), 42.0);
+        float lowerReflection = pow(max(0.0, dot(n, normalize(vec3(.48,-.68,.5)))), 65.0);
+        vec3 color = body * (.65 + .35 * n.y);
+        color = mix(color, lightColor, rim * .8);
+        color += vec3(1.0) * upperReflection * 2.5 + lightColor * lowerReflection * 1.2;
+        gl_FragColor = vec4(color, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+
+
+const STORAGE_KEY = 'cat-tower.platform-material.v1';
+
+// One entry describes both safe and poison surfaces. Gameplay never reads this
+// registry: the same angular boundaries and collision heights apply to all skins.
+const PLATFORM_PRESETS = Object.freeze([
+  { id: 'jelly', label: '透明果冻', description: '鲜亮青提 · 软糖猫爪', bubbles: true, rim: false,
+    surfaceBubbles: false, flatPaw: false, candyDetails: true, rebound: .16,
+    create: config => ({ safe: createCandyJellyMaterial(config), danger: createCandyJellyMaterial(config, true) }) },
+  { id: 'classic', label: '原版糖块', description: '保留原版，随时对照', bubbles: false, rim: true,
+    surfaceBubbles: true, flatPaw: true, flatSkull: true, rebound: .035,
+    create: () => ({ safe: createClassicMaterial(), danger: createClassicMaterial(true) }) },
+  { id: 'pudding', label: '奶油布丁', description: '柔和奶绿 · 草莓粉', bubbles: false, rim: false,
+    surfaceBubbles: false, flatPaw: true, flatSkull: true, rebound: .10,
+    create: () => {
+      const base = { roughness: .3, metalness: 0, clearcoat: .6, clearcoatRoughness: .16, envMapIntensity: .7 };
+      return { safe: new THREE.MeshPhysicalMaterial({ ...base, color: '#c4ee92' }),
+        danger: new THREE.MeshPhysicalMaterial({ ...base, color: '#ea5380' }) };
+    } },
+]);
+
+function readPlatformPreset(fallback = 'classic') {
+  try {
+    const id = localStorage.getItem(STORAGE_KEY);
+    return PLATFORM_PRESETS.some(p => p.id === id) ? id : fallback;
+  } catch { return fallback; }
+}
+
+function savePlatformPreset(id) {
+  if (!PLATFORM_PRESETS.some(p => p.id === id)) throw new Error(`Unknown platform material: ${id}`);
+  try { localStorage.setItem(STORAGE_KEY, id); return true; } catch { return false; }
+}
+
+function createPlatformMaterials(config) {
+  const cache = new Map();
+  let selected = PLATFORM_PRESETS.find(p => p.id === readPlatformPreset());
+  function pair() {
+    if (!cache.has(selected.id)) cache.set(selected.id, selected.create(config));
+    return cache.get(selected.id);
+  }
+  function apply(root) {
+    const materials = pair();
+    root.traverse(object => {
+      const role = object.userData.platformRole;
+      if (role) object.material = materials[role];
+      const decoration = object.userData.platformDecoration;
+      if (decoration) object.visible = !!selected[decoration];
+    });
+  }
+  return {
+    get id() { return selected.id; },
+    get preset() { return selected; },
+    get current() { return pair(); },
+    apply,
+    select(id, root) {
+      const next = PLATFORM_PRESETS.find(p => p.id === id);
+      if (!next) throw new Error(`Unknown platform material: ${id}`);
+      selected = next;
+      if (root) apply(root);
+      return pair();
+    },
+    dispose() { for (const pair of cache.values()) { pair.safe.dispose(); pair.danger.dispose(); } cache.clear(); },
+  };
+}
+
+
+
+
 function canvasTexture(width, height, paint) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -301,42 +450,31 @@ function canvasTexture(width, height, paint) {
 }
 
 function createArt(renderer, scene, config, loadTexture) {
-  // A small studio environment supplies broad, readable candy reflections.
-  const studio = canvasTexture(1024, 512, (ctx, w, h) => {
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#fff5dc');
-    sky.addColorStop(0.48, '#a5c5dd');
-    sky.addColorStop(0.65, '#68788e');
-    sky.addColorStop(1, '#eac6c4');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
-    for (const [x, y, sx, sy] of [[160, 140, 100, 120], [640, 100, 170, 40], [910, 260, 50, 160]]) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(sx, sy);
-      const glow = ctx.createRadialGradient(0, 0, 0.2, 0, 0, 1);
-      glow.addColorStop(0, '#ffffff');
-      glow.addColorStop(0.65, '#fffdfa');
-      glow.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(-1, -1, 2, 2);
-      ctx.restore();
-    }
-  });
-  studio.mapping = THREE.EquirectangularReflectionMapping;
+  // HDR softboxes produce actual moving reflections, including on bevels.
+  const studio = new THREE.Scene();
+  studio.background = new THREE.Color(.10, .22, .12);
+  const panels = [];
+  for (const [position, size, brightness] of [
+    [[-4, 4, 3], [2.5, 5], 7], [[4, 2, 1], [.7, 4], 5],
+    [[0, 4, -7], [5, 3], 4], [[-1, 0, -5], [3, 3], 2],
+  ]) {
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(...size),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(brightness, brightness, brightness * .94) }));
+    panel.position.set(...position); panel.lookAt(0, 0, 0);
+    studio.add(panel); panels.push(panel);
+  }
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const environment = pmrem.fromEquirectangular(studio);
+  const environment = pmrem.fromScene(studio, .025, .1, 50);
   scene.environment = environment.texture;
-  studio.dispose();
+  for (const panel of panels) { panel.geometry.dispose(); panel.material.dispose(); }
   pmrem.dispose();
 
   const physical = (color, extra = {}) => new THREE.MeshPhysicalMaterial({
     color, roughness: 0.19, metalness: 0, clearcoat: 1,
     clearcoatRoughness: 0.08, envMapIntensity: 1.1, ...extra,
   });
+  const platformMaterials = createPlatformMaterials(config);
   const materials = {
-    safe: jellyMaterial(),
-    danger: jellyMaterial(true),
     ivory: physical(0xffedcc),
     bubble: physical(0xb6ffb9, { roughness: 0.08, envMapIntensity: 1.8 }),
     redBubble: physical(0xff6095, { roughness: 0.08, envMapIntensity: 1.8 }),
@@ -344,6 +482,7 @@ function createArt(renderer, scene, config, loadTexture) {
     redRim: new THREE.MeshBasicMaterial({ color: 0xffa9cd, transparent: true, opacity: 0.68 }),
     crumb: physical(0x6fec96),
   };
+  const inclusions = { safe: createAirPocketMaterial(false), danger: createAirPocketMaterial(true) };
   const pawTexture = canvasTexture(256, 256, (ctx) => {
     const gradient = ctx.createLinearGradient(0, 55, 0, 210);
     gradient.addColorStop(0, '#e1ffd6'); gradient.addColorStop(1, '#82e9a0');
@@ -369,31 +508,84 @@ function createArt(renderer, scene, config, loadTexture) {
   const sphere = new THREE.SphereGeometry(1, 12, 8);
   const markGeo = new THREE.PlaneGeometry(0.66, 0.66);
   const dummy = new THREE.Object3D();
+  const pawSphere = new THREE.SphereGeometry(1, 24, 16);
+  const pawReliefMaterial = physical('#82ec9a', { roughness: .10, transmission: .55, thickness: .13,
+    ior: 1.36, envMapIntensity: 1.0, attenuationColor: '#49e076', attenuationDistance: .8 });
+  const padShape = new THREE.Shape();
+  padShape.moveTo(-.22, -.10);
+  padShape.bezierCurveTo(-.34, -.04, -.17, .16, -.06, .19);
+  padShape.bezierCurveTo(-.02, .22, .04, .22, .08, .18);
+  padShape.bezierCurveTo(.17, .12, .32, -.04, .23, -.12);
+  padShape.bezierCurveTo(.18, -.18, .09, -.10, 0, -.10);
+  padShape.bezierCurveTo(-.08, -.10, -.18, -.18, -.22, -.10);
+  const padGeometry = new THREE.ExtrudeGeometry(padShape, { depth: .025, bevelEnabled: true,
+    bevelThickness: .03, bevelSize: .025, bevelSegments: 4, curveSegments: 16 });
+  padGeometry.rotateX(-Math.PI / 2);
+  const skullShape = new THREE.Shape();
+  skullShape.moveTo(-.20, -.08);
+  skullShape.bezierCurveTo(-.38, .04, -.29, .27, 0, .27);
+  skullShape.bezierCurveTo(.29, .27, .38, .04, .20, -.08);
+  skullShape.lineTo(.20, -.20); skullShape.quadraticCurveTo(.15, -.26, .10, -.20);
+  skullShape.lineTo(.08, -.14); skullShape.lineTo(.06, -.23);
+  skullShape.quadraticCurveTo(0, -.28, -.06, -.23);
+  skullShape.lineTo(-.08, -.14); skullShape.lineTo(-.10, -.20);
+  skullShape.quadraticCurveTo(-.15, -.26, -.20, -.20); skullShape.closePath();
+  for (const x of [-.12, .12]) {
+    const eye = new THREE.Path(); eye.absellipse(x, .08, .075, .065, 0, TAU, true);
+    skullShape.holes.push(eye);
+  }
+  const nose = new THREE.Path(); nose.moveTo(0, .005); nose.lineTo(.035, -.055); nose.lineTo(-.035, -.055); nose.closePath();
+  skullShape.holes.push(nose);
+  const skullReliefGeometry = new THREE.ExtrudeGeometry(skullShape, { depth: .035, bevelEnabled: true,
+    bevelThickness: .02, bevelSize: .013, bevelSegments: 4, curveSegments: 18 });
+  skullReliefGeometry.rotateX(-Math.PI / 2);
+  const skullReliefMaterial = physical('#ff5488', { roughness: .15, envMapIntensity: .85 });
+  const glintTexture = canvasTexture(128, 128, ctx => {
+    const glow = ctx.createRadialGradient(64, 64, 2, 64, 64, 61);
+    glow.addColorStop(0, '#ffffdf'); glow.addColorStop(.15, '#f4ffb6c0'); glow.addColorStop(1, '#eaff7700');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = '#ffffef'; ctx.beginPath(); ctx.moveTo(64, 7);
+    ctx.quadraticCurveTo(69, 57, 117, 64); ctx.quadraticCurveTo(69, 69, 64, 121);
+    ctx.quadraticCurveTo(59, 69, 11, 64); ctx.quadraticCurveTo(59, 57, 64, 7); ctx.fill();
+  });
+  const glintMaterial = new THREE.SpriteMaterial({ map: glintTexture, transparent: true, depthWrite: false, toneMapped: false });
 
   function jellyGeometry(start, width) {
-    const inset = Math.min(0.022, width * 0.08);
-    const a = start + inset;
-    const b = start + width - inset;
-    const outer = config.platformRadius - 0.055;
-    const inner = config.pillarRadius + 0.055;
-    const shape = new THREE.Shape();
-    // Shape XY becomes world XZ. Angle zero is +Z, as in the collision rules.
-    shape.moveTo(Math.sin(a) * outer, Math.cos(a) * outer);
-    shape.absarc(0, 0, outer, Math.PI / 2 - a, Math.PI / 2 - b, true);
-    shape.lineTo(Math.sin(b) * inner, Math.cos(b) * inner);
-    shape.absarc(0, 0, inner, Math.PI / 2 - b, Math.PI / 2 - a, false);
-    shape.closePath();
-    const bevel = Math.min(0.10, width * inner * 0.16);
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: config.platformThickness - bevel * 2, bevelEnabled: true,
-      bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3,
-      steps: 1, curveSegments: 22,
-    });
-    geometry.rotateX(Math.PI / 2);
-    geometry.translate(0, config.platformThickness / 2 - bevel, 0);
+    // A rounded, subdivided block bent around the pillar. Rounded corners are
+    // inset, so the silhouette never extends outside the gameplay span.
+    const inner = config.pillarRadius + .035;
+    const outer = config.platformRadius;
+    const middle = (inner + outer) / 2;
+    const radialWidth = outer - inner;
+    // Add fullness below the contact plane; the playable top height stays fixed.
+    const visualThickness = config.platformThickness * 1.22;
+    const centerOffset = (visualThickness - config.platformThickness) / 2;
+    const arcLength = Math.max(.025, (width - Math.min(.035, width * .12)) * middle);
+    const half = new THREE.Vector3(radialWidth / 2, visualThickness / 2, arcLength / 2);
+    const radius = Math.min(.16, arcLength * .22);
+    const geometry = new THREE.BoxGeometry(radialWidth, visualThickness, arcLength, 8, 6, 20).toNonIndexed();
     const positions = geometry.attributes.position;
-    // ExtrudeGeometry duplicates vertices at seams. Average coincident normals
-    // so curved walls and bevels reflect light continuously.
+    const candyCoords = new Float32Array(positions.count * 3);
+    const p = new THREE.Vector3(), core = new THREE.Vector3(), delta = new THREE.Vector3();
+    for (let i = 0; i < positions.count; i++) {
+      p.fromBufferAttribute(positions, i);
+      core.set(
+        THREE.MathUtils.clamp(p.x, -half.x + radius, half.x - radius),
+        THREE.MathUtils.clamp(p.y, -half.y + radius, half.y - radius),
+        THREE.MathUtils.clamp(p.z, -half.z + radius, half.z - radius));
+      delta.copy(p).sub(core).normalize().multiplyScalar(radius);
+      p.copy(core).add(delta);
+      candyCoords.set([p.x / half.x, p.y / half.y, p.z / half.z], i * 3);
+      const r = middle + p.x;
+      // Negative bend preserves the original box winding / outward normals.
+      const angle = start + width / 2 - p.z / middle;
+      // A gently crowned top makes broad reflections roll off the surface.
+      const crown = .024 * ((p.x / half.x) ** 2 + (p.z / half.z) ** 2);
+      const y = p.y - centerOffset - Math.sign(p.y) * crown * (Math.abs(p.y) / half.y) ** 3;
+      positions.setXYZ(i, Math.sin(angle) * r, y, Math.cos(angle) * r);
+    }
+    geometry.computeVertexNormals();
+    geometry.setAttribute('candyCoord', new THREE.BufferAttribute(candyCoords, 3));
     const normalSums = new Map();
     const keyOf = i => [positions.getX(i), positions.getY(i), positions.getZ(i)].map(n => Math.round(n * 10000)).join(',');
     for (let i = 0; i < positions.count; i++) {
@@ -403,7 +595,7 @@ function createArt(renderer, scene, config, loadTexture) {
       normalSums.set(key, sum);
     }
     for (let i = 0; i < positions.count; i++) {
-      const n = normalSums.get(keyOf(i)).clone().normalize();
+      const n = normalSums.get(keyOf(i)).normalize();
       geometry.attributes.normal.setXYZ(i, n.x, n.y, n.z);
     }
     return geometry;
@@ -417,8 +609,10 @@ function createArt(renderer, scene, config, loadTexture) {
       if (span.type === 'gap') continue;
       const danger = span.type === 'hazard';
       const part = new THREE.Group();
-      const mesh = new THREE.Mesh(jellyGeometry(span.start, span.width), danger ? materials.danger : materials.safe);
+      part.userData.span = span;
+      const mesh = new THREE.Mesh(jellyGeometry(span.start, span.width), platformMaterials.current[danger ? 'danger' : 'safe']);
       mesh.userData.ownedGeometry = true;
+      mesh.userData.platformRole = danger ? 'danger' : 'safe';
       part.add(mesh);
 
       // Tiny embossed bubbles stay on the surface instead of floating in screen space.
@@ -435,7 +629,26 @@ function createArt(renderer, scene, config, loadTexture) {
         dummy.updateMatrix(); bubbles.setMatrixAt(i, dummy.matrix);
       }
       bubbles.userData.instanced = true;
+      bubbles.userData.platformDecoration = 'surfaceBubbles';
       part.add(bubbles);
+
+      // Sparse inclusions at different depths, seen through the transmissive shell.
+      const inclusionCount = Math.max(3, Math.floor(span.width * 24));
+      const inside = new THREE.InstancedMesh(sphere, inclusions[danger ? 'danger' : 'safe'], inclusionCount);
+      for (let i = 0; i < inclusionCount; i++) {
+        const a = span.start + span.width * rng.range(.2, .8);
+        const size = i % 4 === 0 ? rng.range(.075, .14) : rng.range(.018, .052);
+        const r = i % 3 === 1 ? config.platformRadius - size * .45
+          : rng.range(config.pillarRadius + .25, config.platformRadius - .25);
+        const y = i % 3 === 0 ? config.platformThickness / 2 - size * .5 : rng.range(-.20, .10);
+        dummy.position.set(Math.sin(a) * r, y, Math.cos(a) * r);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(size);
+        dummy.updateMatrix(); inside.setMatrixAt(i, dummy.matrix);
+      }
+      inside.userData.instanced = true;
+      inside.userData.platformDecoration = 'bubbles';
+      part.add(inside);
 
       const points = [];
       const inset = Math.min(.05, span.width * .18);
@@ -445,6 +658,7 @@ function createArt(renderer, scene, config, loadTexture) {
       }
       const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 24, .019, 5, false), danger ? materials.redRim : materials.rim);
       rim.userData.ownedGeometry = true;
+      rim.userData.platformDecoration = 'rim';
       part.add(rim);
 
       if (span.width > .22) {
@@ -455,10 +669,46 @@ function createArt(renderer, scene, config, loadTexture) {
         mark.position.set(Math.sin(a) * r, config.platformThickness / 2 + .008, Math.cos(a) * r);
         const scale = Math.min(1, span.width / .42);
         mark.scale.setScalar(scale);
+        mark.userData.platformDecoration = danger ? 'flatSkull' : 'flatPaw';
         part.add(mark);
+        if (danger) {
+          const relief = new THREE.Mesh(skullReliefGeometry, skullReliefMaterial);
+          relief.position.copy(mark.position); relief.position.y += .02;
+          relief.rotation.y = a; relief.scale.setScalar(Math.min(1.3, span.width / .55));
+          relief.userData.platformDecoration = 'candyDetails';
+          part.add(relief);
+        }
+        if (!danger) {
+          const relief = new THREE.Group();
+          relief.userData.platformDecoration = 'candyDetails';
+          relief.position.copy(mark.position);
+          relief.rotation.y = a;
+          relief.scale.setScalar(Math.min(1.2, span.width / .55));
+          const pad = new THREE.Mesh(padGeometry, pawReliefMaterial);
+          pad.position.set(0, .027, .105); relief.add(pad);
+          const pads = new THREE.InstancedMesh(pawSphere, pawReliefMaterial, 4);
+          const shapes = [[-.23, .04, -.10, .08, .057, .1], [-.085, .05, -.22, .087, .06, .105],
+            [.085, .05, -.22, .087, .06, .105], [.23, .04, -.10, .08, .057, .1]];
+          shapes.forEach(([x, y, z, sx, sy, sz], i) => {
+            dummy.position.set(x, y, z); dummy.rotation.set(0, 0, 0);
+            dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); pads.setMatrixAt(i, dummy.matrix);
+          });
+          pads.userData.instanced = true;
+          relief.add(pads); part.add(relief);
+        }
+        if (span.width > .5) {
+          const star = new THREE.Sprite(glintMaterial);
+          const angle = span.start + span.width * .83;
+          star.position.set(Math.sin(angle) * (config.platformRadius - .13), config.platformThickness / 2 + .055,
+            Math.cos(angle) * (config.platformRadius - .13));
+          star.scale.setScalar(.25);
+          star.userData.platformDecoration = 'candyDetails';
+          part.add(star);
+        }
       }
       group.add(part); segments.push(part);
     }
+    platformMaterials.apply(group);
     return { group, segments };
   }
 
@@ -485,6 +735,33 @@ function createArt(renderer, scene, config, loadTexture) {
     const body = new THREE.Mesh(columnGeo, columnMat);
     body.position.y = -config.layerGap / 2;
     group.add(body);
+    if (index === 0) {
+      const cap = new THREE.Mesh(columnCapGeo, materials.ivory);
+      cap.position.y = .012;
+      group.add(cap);
+      const rim = new THREE.Mesh(columnRimGeo, materials.ivory);
+      rim.position.y = .025;
+      group.add(rim);
+    }
+    return group;
+  }
+  const columnCapGeo = new THREE.CylinderGeometry(config.pillarRadius, config.pillarRadius, .04, 64);
+  const columnRimGeo = new THREE.TorusGeometry(config.pillarRadius - .03, .055, 10, 64);
+  columnRimGeo.rotateX(Math.PI / 2);
+  const contactRingGeo = new THREE.TorusGeometry(.34, .065, 10, 40);
+  contactRingGeo.rotateX(Math.PI / 2);
+  function createPoisonContact() {
+    const group = new THREE.Group();
+    const ring = new THREE.Mesh(contactRingGeo, materials.redBubble);
+    ring.scale.set(1.25, 1, .8);
+    group.add(ring);
+    for (let i = 0; i < 5; i++) {
+      const a = i * TAU / 5;
+      const bubble = new THREE.Mesh(sphere, materials.redBubble);
+      bubble.scale.setScalar(.035 + (i % 2) * .024);
+      bubble.position.set(Math.cos(a) * .45, .025, Math.sin(a) * .28);
+      group.add(bubble);
+    }
     return group;
   }
 
@@ -515,7 +792,8 @@ function createArt(renderer, scene, config, loadTexture) {
       star.material.opacity = pulse * .85;
     }
   }
-  return { materials, createPlatform, createColumn, animate };
+  return { materials, platformMaterials, createPlatform, createColumn, createPoisonContact, animate,
+    setSparklesVisible(visible) { sparkles.visible = visible; } };
 }
 
 // Platform geometry is unique; shared materials, marks and spheres survive recycling.
@@ -527,8 +805,66 @@ function disposePlatform(group) {
   group.removeFromParent();
 }
 
-const THREE = globalThis.__THREE__;
-if (!THREE) throw new Error('Three.js 未加载');
+// Use the same image inside WebGL so transmission can actually sample it.
+// Match CSS background-size: cover without stretching at different aspect ratios.
+function createWorldBackground(scene, loadTexture) {
+  const texture = loadTexture('./assets/world-hd.png');
+  scene.background = texture;
+  let lastAspect = 0;
+  return function resizeBackground(aspect) {
+    const image = texture.image;
+    if (!image?.width || lastAspect === aspect) return;
+    lastAspect = aspect;
+    const ratio = (image.width / image.height) / aspect;
+    texture.repeat.set(Math.min(1, 1 / ratio), Math.min(1, ratio));
+    texture.offset.set((1 - texture.repeat.x) / 2, (1 - texture.repeat.y) / 2);
+    texture.updateMatrix();
+  };
+}
+
+
+function mountMaterialSwitcher(art, root, parent) {
+  const panel = document.createElement('details');
+  panel.className = 'material-switcher';
+  const summary = document.createElement('summary');
+  panel.appendChild(summary);
+  const options = document.createElement('div');
+  options.className = 'material-menu';
+  options.setAttribute('role', 'group');
+  options.setAttribute('aria-label', '平台材质');
+  panel.appendChild(options);
+  function refresh() {
+    summary.textContent = `材质 · ${art.platformMaterials.preset.label}`;
+    for (const button of options.querySelectorAll('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.preset === art.platformMaterials.id));
+    }
+  }
+  const requested = new URLSearchParams(location.search).get('material');
+  if (PLATFORM_PRESETS.some(p => p.id === requested)) art.platformMaterials.select(requested, root);
+  for (const preset of PLATFORM_PRESETS) {
+    const button = document.createElement('button');
+    button.dataset.preset = preset.id;
+    button.textContent = preset.label;
+    button.addEventListener('click', () => {
+      art.platformMaterials.select(preset.id, root);
+      const saved = savePlatformPreset(preset.id);
+      const url = new URL(location.href);
+      url.searchParams.set('material', preset.id);
+      history.replaceState(null, '', url);
+      refresh();
+      summary.title = saved ? '已记住选择' : '本次选择已保存在页面地址中';
+      panel.open = false;
+    });
+    options.appendChild(button);
+  }
+  const link = document.createElement('a');
+  link.href = './material-lab.html';
+  link.textContent = '打开材质小样 ↗';
+  options.appendChild(link);
+  refresh();
+  parent.appendChild(panel);
+}
+
 const gameEl = document.getElementById('game');
 const frameEl = document.getElementById('phoneFrame');
 const debugMode = new URLSearchParams(location.search).has('debug');
@@ -562,7 +898,7 @@ const CONFIG = Object.freeze({
   catZ: 2.05,
   gravity: -10.2,
   jumpVelocity: 5.25,
-  landingPause: 0.08,
+  landingPause: JELLY_CONTACT_TIME,
   dragTurnsPerScreen: 240 * Math.PI / 180,
   aheadLayers: 8,
   keepBehind: 3,
@@ -621,6 +957,9 @@ function loadArtTexture(url) {
 
 const jellyBurstTexture = loadArtTexture('./assets/jelly-burst.svg');
 const art = createArt(renderer, scene, CONFIG, loadArtTexture);
+const resizeBackground = createWorldBackground(scene, loadArtTexture);
+mountMaterialSwitcher(art, towerRoot, frameEl);
+renderer.transmissionResolutionScale = .75;
 const matCookie = art.materials.crumb;
 const matCookieAlt = art.materials.bubble;
 const matChip = art.materials.ivory;
@@ -629,7 +968,7 @@ scene.add(pillarRoot);
 const pillarModules = new Map();
 
 function ensurePillarModules() {
-  const start = Math.max(-4, rules.depth - CONFIG.keepBehind - 3);
+  const start = Math.max(0, rules.depth - CONFIG.keepBehind - 3);
   const end = rules.depth + CONFIG.aheadLayers + 1;
   for (let i = start; i <= end; i++) {
     if (!pillarModules.has(i)) {
@@ -698,7 +1037,7 @@ function makeLayer(index) {
   const { group, segments } = art.createPlatform(data, index);
   group.position.y = -index * CONFIG.layerGap;
   towerRoot.add(group);
-  const layer = { index, data, group, segments, eaten: index < 0 };
+  const layer = { index, data, group, segments, eaten: false };
   layers.set(index, layer);
   return layer;
 }
@@ -738,7 +1077,31 @@ function targetCatScale() {
 }
 
 function layerTopY(layer) {
-  return layer.group.position.y + CONFIG.platformThickness / 2;
+  const part = partUnderCat(layer);
+  return layer.group.position.y + CONFIG.platformThickness / 2 * (part?.scale.y ?? 1) + (part?.position.y ?? 0);
+}
+
+function partUnderCat(layer) {
+  const angle = localAngleUnderCat();
+  return layer.segments.find(part => angleInArc(angle, part.userData.span.start, part.userData.span.width));
+}
+
+function compressJelly(layer, speed) {
+  const part = partUnderCat(layer);
+  if (part) part.userData.spring = { time: 0, strength: THREE.MathUtils.clamp(.23 + Math.abs(speed) * .018, .28, .43) };
+}
+
+function updateJellyMotion(dt) {
+  for (const layer of layers.values()) for (const part of layer.segments) {
+    const spring = part.userData.spring;
+    if (!spring) continue;
+    spring.time += dt;
+    const compression = jellyCompression(spring.time, spring.strength);
+    part.scale.set(1 + compression * .10, 1 - compression, 1 + compression * .10);
+    // Anchor the actual rounded block's bottom while its top compresses.
+    part.position.y = -compression * CONFIG.platformThickness * .72;
+    if (spring.time >= .9) delete part.userData.spring;
+  }
 }
 
 function platformStatus(layer) {
@@ -768,9 +1131,11 @@ let pulse = 0;
 let squash = 0;
 let deadShown = false;
 let gameOverTimer;
+let poisonSink = null;
 let state = 'idle';
 let vy = 0;
 let landingTimer = 0;
+let landedLayer = null;
 let firstInput = false;
 let smashReady = false;
 let smashLayer = null;
@@ -794,11 +1159,14 @@ function consumeBounce() {
   pulse = -0.08;
   vy = CONFIG.jumpVelocity;
   state = 'bouncing';
+  landedLayer = null;
   return true;
 }
 
 function landOn(layer) {
   cleanupLayersAbove(layer.index);
+  compressJelly(layer, vy);
+  landedLayer = layer;
   cat.root.position.y = layerTopY(layer) + getCatRadius();
   vy = 0;
   rules.land();
@@ -914,6 +1282,7 @@ function startLandingSmash(layer) {
 
   smashReady = false;
   smashLayer = layer;
+  compressJelly(layer, vy);
   smashBaseY = layerTopY(layer) + getCatRadius();
   cat.root.position.y = smashBaseY;
   vy = 0;
@@ -961,12 +1330,20 @@ function resolveLandingSmash() {
   cat.root.position.y = smashBaseY + 0.035;
 }
 
-function hitHazard() {
+function hitHazard(layer) {
   if (!rules.alive) return;
   rules.hitHazard();
-  state = 'hazardDead';
-  vy = 3.6;
-  showGameOver('hazard');
+  state = 'hazardSinking';
+  vy = 0;
+  dragging = false;
+  const contact = art.createPoisonContact();
+  contact.position.set(cat.root.position.x, layerTopY(layer) + .018, CONFIG.catZ);
+  scene.add(contact);
+  poisonSink = { startY: cat.root.position.y, elapsed: 0, depth: .48, contact, layer: layer.index };
+  cat.eatTimer = 0;
+  pulse = 0;
+  squash = 0;
+  updateHUD();
 }
 
 function showGameOver(reason) {
@@ -978,20 +1355,25 @@ function showGameOver(reason) {
     hud.finalScore.textContent = String(rules.score);
     if (reason === 'hazard') {
       hud.deathEmoji.textContent = '🙀';
-      hud.deathTitle.textContent = '碰到毒果冻啦！';
-      hud.deathText.textContent = '紫红色毒果冻是危险区，下一局别落上去。';
+      hud.deathTitle.textContent = '被毒果冻困住啦';
+      hud.deathText.textContent = '黏住了小爪爪，跳不起来了…';
     } else {
       hud.deathEmoji.textContent = '😿';
       hud.deathTitle.textContent = '没力气啦！';
       hud.deathText.textContent = '少空跳，多追连续缺口，吃掉果冻就能补充弹跳次数。';
     }
     hud.gameOver.classList.remove('hidden');
-  }, reason === 'hazard' ? 430 : 560);
+  }, reason === 'hazard' ? 500 : 560);
 }
 
 function resetGame() {
   clearTimeout(gameOverTimer);
+  if (poisonSink) {
+    poisonSink.contact.removeFromParent();
+    poisonSink = null;
+  }
   rules.reset();
+  landedLayer = null;
   generator = new LayerGenerator((Date.now() ^ ((Math.random() * 0xffffffff) >>> 0)) >>> 0);
   clearLayers();
   clearPillarModules();
@@ -1019,12 +1401,10 @@ function resetGame() {
   vy = 0;
   // Show the configured initial count before the first real takeoff consumes one.
   landingTimer = 0.34;
-  makeLayer(-2);
-  makeLayer(-1);
   ensureLayers();
   ensurePillarModules();
   towerRoot.rotation.y = -layers.get(0).data.primaryAngle + .95;
-  cameraFocusY = cat.root.position.y - 1.45;
+  cameraFocusY = cat.root.position.y - 2.15;
   hud.gameOver.classList.add('hidden');
   updateHUD();
 }
@@ -1125,7 +1505,7 @@ function collisionStep(prevY, currentY) {
 
     if (status === 'hazard') {
       cat.root.position.y = top + radius;
-      hitHazard();
+      hitHazard(layer);
       return;
     }
     cat.root.position.y = top + radius;
@@ -1136,21 +1516,41 @@ function collisionStep(prevY, currentY) {
 
 function updateCat(dt) {
   if (state === 'landed') {
-    landingTimer -= dt;
-    if (landingTimer <= 0) consumeBounce();
+    if (landedLayer && !landedLayer.eaten) {
+      const status = platformStatus(landedLayer);
+      if (status === 'gap') {
+        beginEat(landedLayer); landedLayer = null; state = 'bouncing'; vy = -.2;
+      } else if (status === 'hazard') {
+        cat.root.position.y = layerTopY(landedLayer) + getCatRadius();
+        hitHazard(landedLayer); landedLayer = null;
+      } else cat.root.position.y = layerTopY(landedLayer) + getCatRadius();
+    }
+    if (state === 'landed') {
+      landingTimer -= dt;
+      if (landingTimer <= 0) consumeBounce();
+    }
+  } else if (state === 'starved' && landedLayer && !landedLayer.eaten) {
+    cat.root.position.y = layerTopY(landedLayer) + getCatRadius();
   } else if (state === 'smashCharge' && rules.alive) {
     smashTimer -= dt;
-    cat.root.position.y = smashBaseY;
+    cat.root.position.y = smashLayer ? layerTopY(smashLayer) + getCatRadius() : smashBaseY;
     if (smashTimer <= 0) resolveLandingSmash();
   } else if (state === 'bouncing' && rules.alive) {
     const prevY = cat.root.position.y;
     vy += CONFIG.gravity * dt;
     cat.root.position.y += vy * dt;
     collisionStep(prevY, cat.root.position.y);
-  } else if (state === 'hazardDead') {
-    vy += CONFIG.gravity * 0.72 * dt;
-    cat.root.position.y += vy * dt;
-    cat.root.rotation.z += dt * 3.6;
+  } else if (state === 'hazardSinking') {
+    poisonSink.elapsed = Math.min(.85, poisonSink.elapsed + dt);
+    const t = poisonSink.elapsed / .85;
+    const eased = t * t * (3 - 2 * t);
+    cat.root.position.y = poisonSink.startY - poisonSink.depth * eased;
+    poisonSink.contact.scale.setScalar(.8 + .2 * eased);
+    vy = 0;
+    if (t >= 1) {
+      state = 'hazardStuck';
+      showGameOver('hazard');
+    }
   }
 
   const isFalling = state === 'bouncing' && vy < -0.8;
@@ -1177,7 +1577,11 @@ function updateCat(dt) {
     cat.shadow.scale.setScalar(Math.max(.4, 1 - (cat.root.position.y - layerTopY(ground)) * .22));
   }
 
-  if (!rules.alive || state === 'hazardDead' || state === 'starved') {
+  if (poisonSink) {
+    setCatTexture('fall');
+    cat.visual.material.rotation = -.10;
+    cat.shadow.visible = false;
+  } else if (!rules.alive || state === 'starved') {
     setCatTexture('fail');
   } else if (state === 'smashCharge') {
     setCatTexture('squash');
@@ -1201,13 +1605,15 @@ function updateCat(dt) {
 let cameraFocusY = 0;
 function updateCamera(dt) {
   // Follow descent without chasing each small bounce.
-  const targetY = cat.root.position.y - 1.45;
+  const anchorY = poisonSink ? poisonSink.startY : cat.root.position.y;
+  const targetY = anchorY - (rules.depth === 0 ? 2.15 : 1.45);
   const speed = targetY < cameraFocusY ? 9 : 1.6;
   cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-speed * dt));
   cameraFocusY = Math.min(cameraFocusY, targetY + .75);
   camera.position.set(0, cameraFocusY + 8.2, 20);
   camera.lookAt(0, cameraFocusY, 0);
   art.animate(performance.now() / 1000, cameraFocusY);
+  resizeBackground(gameEl.clientWidth / Math.max(1, gameEl.clientHeight));
 }
 
 let dragging = false;
@@ -1259,6 +1665,7 @@ function frame(now) {
   last = now;
   ensureLayers();
   ensurePillarModules();
+  updateJellyMotion(dt);
   updateCat(dt);
   updateEatAnimations(dt);
   updateCamera(dt);
@@ -1290,3 +1697,4 @@ if (debugMode) {
 await Promise.all(artLoads);
 loadingEl.classList.add('hidden');
 requestAnimationFrame(frame);
+

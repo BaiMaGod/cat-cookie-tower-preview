@@ -1,4 +1,4 @@
-/* Built from BaiMaGod/cat-cookie-tower@f304081d56c776bf6a7cd2a697446e48e9596b4b. No sourcemap. */
+/* cat-cookie-tower v3.1.0 production bootstrap | no sourcemap */
 const loadingEl = document.getElementById('loading');
 
 const sources = [
@@ -38,13 +38,13 @@ function showBootError(err) {
   card.innerHTML = `
     <div class="cat-mark">😿🍪</div>
     <h1>游戏加载失败</h1>
-    <p>游戏资源加载失败，请刷新页面后重试。</p>
+    <p>请通过 <code>start.bat</code> 启动游戏，并确认 <code>assets/</code> 和 <code>vendor/</code> 文件完整后刷新。</p>
     <details style="text-align:left;font-size:12px;opacity:.72;max-height:150px;overflow:auto"><summary>错误详情</summary><pre style="white-space:pre-wrap">${escapeHTML(err?.message || err)}</pre></details>`;
 }
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=f304081');
+  await import('./game.bundle.js?v=310');
 } catch (err) {
   console.error(err);
   showBootError(err);
