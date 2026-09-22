@@ -1,8 +1,8 @@
-/* production preview bootstrap; no sourcemap */
+/* Built from BaiMaGod/cat-cookie-tower@f304081d56c776bf6a7cd2a697446e48e9596b4b. No sourcemap. */
 const loadingEl = document.getElementById('loading');
 
 const sources = [
-  { src: './vendor/three.module.js', timeout: 700 },
+  { src: './vendor/three.module.js', timeout: 6000 },
   { src: 'https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js', timeout: 3500 },
   { src: 'https://unpkg.com/three@0.186.0/build/three.module.js', timeout: 3500 },
 ];
@@ -37,14 +37,14 @@ function showBootError(err) {
   if (!card) return;
   card.innerHTML = `
     <div class="cat-mark">😿🍪</div>
-    <h1>Three.js 加载失败</h1>
-    <p>请确认电脑可以访问网络，或把同一版本的 <code>three.module.js</code> 和 <code>three.core.js</code> 一起放进项目的 <code>vendor/</code> 目录后刷新。</p>
+    <h1>游戏加载失败</h1>
+    <p>游戏资源加载失败，请刷新页面后重试。</p>
     <details style="text-align:left;font-size:12px;opacity:.72;max-height:150px;overflow:auto"><summary>错误详情</summary><pre style="white-space:pre-wrap">${escapeHTML(err?.message || err)}</pre></details>`;
 }
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=239');
+  await import('./game.bundle.js?v=f304081');
 } catch (err) {
   console.error(err);
   showBootError(err);

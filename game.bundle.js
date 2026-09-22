@@ -1,4 +1,4 @@
-/* production preview bundle; no sourcemap */
+/* Built from BaiMaGod/cat-cookie-tower@f304081d56c776bf6a7cd2a697446e48e9596b4b. No sourcemap. */
 const TAU = Math.PI * 2;
 
 function normalizeAngle(a) {
@@ -11,6 +11,33 @@ function angleInArc(angle, start, width) {
   const s = normalizeAngle(start);
   const d = normalizeAngle(a - s);
   return d <= width;
+}
+
+// Split at every gameplay boundary before adding cosmetic seams. Visible poison
+// and openings therefore have exactly the same angular extent as collisions.
+function platformSpans(data, maxSpan = Math.PI / 3) {
+  const boundaries = [0, TAU];
+  for (const arc of [...data.gaps, ...data.hazards]) {
+    boundaries.push(normalizeAngle(arc.start), normalizeAngle(arc.start + arc.width));
+  }
+  const sorted = [...new Set(boundaries)].sort((a, b) => a - b);
+  const runs = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = sorted[i], width = sorted[i + 1] - start;
+    if (width < 1e-8) continue;
+    const mid = start + width / 2;
+    const type = data.gaps.some(g => angleInArc(mid, g.start, g.width)) ? 'gap'
+      : data.hazards.some(h => angleInArc(mid, h.start, h.width)) ? 'hazard' : 'safe';
+    const last = runs.at(-1);
+    if (last?.type === type) last.width += width;
+    else runs.push({ start, width, type });
+  }
+  return runs.flatMap(run => {
+    const count = run.type === 'gap' ? 1 : Math.ceil(run.width / maxSpan);
+    return Array.from({ length: count }, (_, i) => ({
+      start: run.start + run.width * i / count, width: run.width / count, type: run.type,
+    }));
+  });
 }
 
 class GameRules {
@@ -182,10 +209,329 @@ class LayerGenerator {
 }
 
 const THREE = globalThis.__THREE__;
+const TAU = Math.PI * 2;
+
+// Stylized jelly: opaque depth gives stable overlapping rings on mobile, while
+// rim lighting, embedded bubbles and reflection bands suggest a translucent sweet.
+function jellyMaterial(danger = false) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTop: { value: new THREE.Color(danger ? '#f52280' : '#74ef8a') },
+      uBody: { value: new THREE.Color(danger ? '#a80043' : '#069b53') },
+      uGlow: { value: new THREE.Color(danger ? '#ffc1df' : '#e0ffb2') },
+    },
+    vertexShader: `
+      varying vec3 vLocal;
+      varying vec3 vLocalNormal;
+      varying vec3 vNormalView;
+      varying vec3 vEye;
+      void main() {
+        vLocal = position;
+        vLocalNormal = normal;
+        vNormalView = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vEye = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uTop;
+      uniform vec3 uBody;
+      uniform vec3 uGlow;
+      varying vec3 vLocal;
+      varying vec3 vLocalNormal;
+      varying vec3 vNormalView;
+      varying vec3 vEye;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      void main() {
+        vec3 n = normalize(vNormalView);
+        vec3 eye = normalize(vEye);
+        float facing = clamp(dot(n, eye), 0.0, 1.0);
+        float rim = pow(1.0 - facing, 2.7);
+        float height = smoothstep(-.30, .30, vLocal.y);
+        vec3 color = mix(uBody, uTop, height * .78);
+        vec3 light = normalize(vec3(-.55, .8, .8));
+        float diffuse = max(0.0, dot(n, light));
+        color *= .77 + diffuse * .34;
+        color = mix(color, uGlow, rim * .48);
+        // Curved edges catch narrow white softbox highlights.
+        vec3 reflected = reflect(-eye, n);
+        float strip = pow(max(0.0, 1.0 - abs(reflected.x + .42) * 4.0), 12.0);
+        float strip2 = pow(max(0.0, 1.0 - abs(reflected.x - .72) * 7.0), 14.0);
+        float spec = pow(max(0.0, dot(n, normalize(light + eye))), 85.0);
+        color += vec3(1.0, 1.0, .89) * (spec * .95 + (strip * .9 + strip2 * .6) * (.35 + rim));
+        // A stable surface pattern, attached to the geometry as the tower turns.
+        bool onTop = vLocal.y > .245;
+        float radial = abs(dot(normalize(vLocalNormal.xz), normalize(vLocal.xz)));
+        vec2 sideUV = radial > .7 ? vec2(atan(vLocal.x, vLocal.z) * 2.55, vLocal.y) : vec2(length(vLocal.xz), vLocal.y);
+        vec2 uv = onTop ? vLocal.xz * 4.3 : sideUV * 4.3;
+        vec2 cell = floor(uv);
+        float seed = hash(cell);
+        vec2 center = vec2(.2 + .6 * seed, .2 + .6 * hash(cell + 41.0));
+        vec2 delta = fract(uv) - center;
+        float radius = .045 + .24 * seed * seed;
+        float d = length(delta);
+        float edge = 1.0 - smoothstep(.012, .037, abs(d - radius));
+        float inside = 1.0 - smoothstep(radius - .025, radius, d);
+        float shine = 1.0 - smoothstep(.008, .043, length(delta - vec2(-radius * .37, radius * .44)));
+        float visible = step(.43, seed);
+        color = mix(color, color * .70, inside * visible * .19);
+        color += uGlow * visible * (edge * .22 + shine * .60);
+        if (onTop) {
+          float diagonal = dot(vLocal.xz, vec2(.8, .6));
+          float lacquer = exp(-pow((diagonal - .65) / .14, 2.0)) * .20
+                        + exp(-pow((diagonal + .30) / .04, 2.0)) * .15;
+          color += vec3(.85, 1.0, .8) * lacquer;
+        }
+        gl_FragColor = vec4(color, 1.0);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+function canvasTexture(width, height, paint) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  paint(canvas.getContext('2d'), width, height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createArt(renderer, scene, config, loadTexture) {
+  // A small studio environment supplies broad, readable candy reflections.
+  const studio = canvasTexture(1024, 512, (ctx, w, h) => {
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#fff5dc');
+    sky.addColorStop(0.48, '#a5c5dd');
+    sky.addColorStop(0.65, '#68788e');
+    sky.addColorStop(1, '#eac6c4');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+    for (const [x, y, sx, sy] of [[160, 140, 100, 120], [640, 100, 170, 40], [910, 260, 50, 160]]) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(sx, sy);
+      const glow = ctx.createRadialGradient(0, 0, 0.2, 0, 0, 1);
+      glow.addColorStop(0, '#ffffff');
+      glow.addColorStop(0.65, '#fffdfa');
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
+    }
+  });
+  studio.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const environment = pmrem.fromEquirectangular(studio);
+  scene.environment = environment.texture;
+  studio.dispose();
+  pmrem.dispose();
+
+  const physical = (color, extra = {}) => new THREE.MeshPhysicalMaterial({
+    color, roughness: 0.19, metalness: 0, clearcoat: 1,
+    clearcoatRoughness: 0.08, envMapIntensity: 1.1, ...extra,
+  });
+  const materials = {
+    safe: jellyMaterial(),
+    danger: jellyMaterial(true),
+    ivory: physical(0xffedcc),
+    bubble: physical(0xb6ffb9, { roughness: 0.08, envMapIntensity: 1.8 }),
+    redBubble: physical(0xff6095, { roughness: 0.08, envMapIntensity: 1.8 }),
+    rim: new THREE.MeshBasicMaterial({ color: 0xdfffbc, transparent: true, opacity: 0.66 }),
+    redRim: new THREE.MeshBasicMaterial({ color: 0xffa9cd, transparent: true, opacity: 0.68 }),
+    crumb: physical(0x6fec96),
+  };
+  const pawTexture = canvasTexture(256, 256, (ctx) => {
+    const gradient = ctx.createLinearGradient(0, 55, 0, 210);
+    gradient.addColorStop(0, '#e1ffd6'); gradient.addColorStop(1, '#82e9a0');
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = '#eaffdf'; ctx.lineWidth = 5;
+    for (const [x, y, rx, ry, rot] of [[128, 160, 52, 37, 0], [66, 109, 20, 26, -.45], [104, 78, 20, 27, -.15], [150, 78, 20, 27, .15], [189, 109, 20, 26, .45]]) {
+      ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, TAU); ctx.fill(); ctx.stroke();
+    }
+  });
+  const skullTexture = canvasTexture(256, 256, (ctx) => {
+    ctx.fillStyle = '#ffbed6'; ctx.strokeStyle = '#ffe7ed'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.ellipse(128, 106, 72, 57, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    for (const x of [92, 128, 164]) {
+      ctx.beginPath(); ctx.roundRect(x - 11, 139, 22, 43, 10); ctx.fill();
+    }
+    ctx.fillStyle = '#ad1755';
+    for (const x of [99, 157]) { ctx.beginPath(); ctx.ellipse(x, 109, 20, 23, 0, 0, TAU); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(128, 131); ctx.lineTo(117, 145); ctx.lineTo(139, 145); ctx.fill();
+  });
+  const markMaterial = (map) => new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+  const pawMat = markMaterial(pawTexture);
+  const skullMat = markMaterial(skullTexture);
+  const sphere = new THREE.SphereGeometry(1, 12, 8);
+  const markGeo = new THREE.PlaneGeometry(0.66, 0.66);
+  const dummy = new THREE.Object3D();
+
+  function jellyGeometry(start, width) {
+    const inset = Math.min(0.022, width * 0.08);
+    const a = start + inset;
+    const b = start + width - inset;
+    const outer = config.platformRadius - 0.055;
+    const inner = config.pillarRadius + 0.055;
+    const shape = new THREE.Shape();
+    // Shape XY becomes world XZ. Angle zero is +Z, as in the collision rules.
+    shape.moveTo(Math.sin(a) * outer, Math.cos(a) * outer);
+    shape.absarc(0, 0, outer, Math.PI / 2 - a, Math.PI / 2 - b, true);
+    shape.lineTo(Math.sin(b) * inner, Math.cos(b) * inner);
+    shape.absarc(0, 0, inner, Math.PI / 2 - b, Math.PI / 2 - a, false);
+    shape.closePath();
+    const bevel = Math.min(0.10, width * inner * 0.16);
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: config.platformThickness - bevel * 2, bevelEnabled: true,
+      bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3,
+      steps: 1, curveSegments: 22,
+    });
+    geometry.rotateX(Math.PI / 2);
+    geometry.translate(0, config.platformThickness / 2 - bevel, 0);
+    const positions = geometry.attributes.position;
+    // ExtrudeGeometry duplicates vertices at seams. Average coincident normals
+    // so curved walls and bevels reflect light continuously.
+    const normalSums = new Map();
+    const keyOf = i => [positions.getX(i), positions.getY(i), positions.getZ(i)].map(n => Math.round(n * 10000)).join(',');
+    for (let i = 0; i < positions.count; i++) {
+      const key = keyOf(i);
+      const sum = normalSums.get(key) || new THREE.Vector3();
+      sum.add(new THREE.Vector3().fromBufferAttribute(geometry.attributes.normal, i));
+      normalSums.set(key, sum);
+    }
+    for (let i = 0; i < positions.count; i++) {
+      const n = normalSums.get(keyOf(i)).clone().normalize();
+      geometry.attributes.normal.setXYZ(i, n.x, n.y, n.z);
+    }
+    return geometry;
+  }
+
+  function createPlatform(data, index) {
+    const group = new THREE.Group();
+    const rng = new SeededRandom(index * 7919 + 812);
+    const segments = [];
+    for (const span of platformSpans(data)) {
+      if (span.type === 'gap') continue;
+      const danger = span.type === 'hazard';
+      const part = new THREE.Group();
+      const mesh = new THREE.Mesh(jellyGeometry(span.start, span.width), danger ? materials.danger : materials.safe);
+      mesh.userData.ownedGeometry = true;
+      part.add(mesh);
+
+      // Tiny embossed bubbles stay on the surface instead of floating in screen space.
+      const count = Math.max(2, Math.floor(span.width * 20));
+      const bubbles = new THREE.InstancedMesh(sphere, danger ? materials.redBubble : materials.bubble, count);
+      for (let i = 0; i < count; i++) {
+        const angle = span.start + span.width * rng.range(.12, .88);
+        const size = rng.range(.022, .067);
+        const top = i % 3 === 0;
+        const radius = top ? rng.range(config.pillarRadius + .2, config.platformRadius - .15) : config.platformRadius - .01;
+        dummy.position.set(Math.sin(angle) * radius, top ? config.platformThickness / 2 + .005 : rng.range(-.16, .13), Math.cos(angle) * radius);
+        dummy.rotation.set(0, angle, 0);
+        dummy.scale.set(size, top ? size * .3 : size, top ? size : size * .25);
+        dummy.updateMatrix(); bubbles.setMatrixAt(i, dummy.matrix);
+      }
+      bubbles.userData.instanced = true;
+      part.add(bubbles);
+
+      const points = [];
+      const inset = Math.min(.05, span.width * .18);
+      for (let j = 0; j <= 24; j++) {
+        const a = span.start + inset + (span.width - inset * 2) * j / 24;
+        points.push(new THREE.Vector3(Math.sin(a) * (config.platformRadius - .043), config.platformThickness / 2 - .025, Math.cos(a) * (config.platformRadius - .043)));
+      }
+      const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 24, .019, 5, false), danger ? materials.redRim : materials.rim);
+      rim.userData.ownedGeometry = true;
+      part.add(rim);
+
+      if (span.width > .22) {
+        const mark = new THREE.Mesh(markGeo, danger ? skullMat : pawMat);
+        const a = span.start + span.width / 2;
+        const r = (config.pillarRadius + config.platformRadius) / 2;
+        mark.rotation.set(-Math.PI / 2, 0, -a);
+        mark.position.set(Math.sin(a) * r, config.platformThickness / 2 + .008, Math.cos(a) * r);
+        const scale = Math.min(1, span.width / .42);
+        mark.scale.setScalar(scale);
+        part.add(mark);
+      }
+      group.add(part); segments.push(part);
+    }
+    return { group, segments };
+  }
+
+  // Project the supplied, prelit candy artwork onto a real cylinder. The fixed
+  // camera preserves its illustrated highlights; the mesh preserves occlusion.
+  const columnTexture = loadTexture('./assets/column-hd.png');
+  const columnMat = new THREE.MeshBasicMaterial({ map: columnTexture, toneMapped: false });
+  columnMat.onBeforeCompile = shader => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      diffuseColor = vec4(mix(vec3(1.0, .77, .46), diffuseColor.rgb, diffuseColor.a), 1.0);
+    `);
+  };
+  const columnGeo = new THREE.CylinderGeometry(config.pillarRadius, config.pillarRadius, config.layerGap + .006, 64);
+  const cp = columnGeo.attributes.position;
+  for (let i = 0; i < cp.count; i++) {
+    columnGeo.attributes.uv.setXY(i,
+      .5 + .18 * cp.getX(i) / config.pillarRadius,
+      1 - (680 + (config.layerGap / 2 - cp.getY(i)) / config.layerGap * 480) / 1672);
+  }
+  function createColumn(index) {
+    const group = new THREE.Group();
+    group.position.y = -index * config.layerGap;
+    const body = new THREE.Mesh(columnGeo, columnMat);
+    body.position.y = -config.layerGap / 2;
+    group.add(body);
+    return group;
+  }
+
+  const sparkleTexture = canvasTexture(64, 64, (ctx) => {
+    const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+    glow.addColorStop(0, '#ffffff'); glow.addColorStop(.2, '#fffbd1'); glow.addColorStop(1, 'rgba(255,247,176,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#fffef0'; ctx.beginPath();
+    ctx.moveTo(32, 4); ctx.quadraticCurveTo(35, 29, 59, 32);
+    ctx.quadraticCurveTo(35, 35, 32, 60); ctx.quadraticCurveTo(29, 35, 5, 32);
+    ctx.quadraticCurveTo(29, 29, 32, 4); ctx.fill();
+  });
+  const sparkles = new THREE.Group();
+  const rng = new SeededRandom(128);
+  for (let i = 0; i < 22; i++) {
+    const star = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkleTexture, transparent: true, depthWrite: false, toneMapped: false }));
+    star.position.set(rng.range(-2.7, 2.7), rng.range(-7, 6), rng.range(1.5, 3));
+    star.userData.phase = rng.range(0, TAU);
+    star.userData.size = rng.range(.09, .23);
+    sparkles.add(star);
+  }
+  scene.add(sparkles);
+  function animate(time, focusY) {
+    sparkles.position.y = focusY;
+    for (const star of sparkles.children) {
+      const pulse = .45 + .55 * Math.sin(time * 1.7 + star.userData.phase) ** 4;
+      star.scale.setScalar(star.userData.size * pulse);
+      star.material.opacity = pulse * .85;
+    }
+  }
+  return { materials, createPlatform, createColumn, animate };
+}
+
+// Platform geometry is unique; shared materials, marks and spheres survive recycling.
+function disposePlatform(group) {
+  group.traverse(object => {
+    if (object.userData.ownedGeometry) object.geometry.dispose();
+    if (object.userData.instanced) object.dispose();
+  });
+  group.removeFromParent();
+}
+
+const THREE = globalThis.__THREE__;
 if (!THREE) throw new Error('Three.js 未加载');
 const gameEl = document.getElementById('game');
 const frameEl = document.getElementById('phoneFrame');
-const catDom = document.getElementById('catSprite');
+const debugMode = new URLSearchParams(location.search).has('debug');
 const loadingEl = document.getElementById('loading');
 const hud = {
   depth: document.getElementById('depth'),
@@ -207,421 +553,136 @@ const hud = {
 const CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
-  layerGap: 1.82,
-  platformRadius: 2.95,
-  platformThickness: 0.58,
-  pillarRadius: 0.72,
+  layerGap: 2.20,
+  platformRadius: 2.55,
+  platformThickness: 0.56,
+  pillarRadius: 1.02,
   catRadius: 0.31,
   catRadiusAtMax: 0.37,
-  catZ: 2.30,
+  catZ: 2.05,
   gravity: -10.2,
   jumpVelocity: 5.25,
   landingPause: 0.08,
   dragTurnsPerScreen: 240 * Math.PI / 180,
-  sliceCount: 12,
-  aheadLayers: 14,
-  keepBehind: 5,
-  cameraFollow: 6.1,
+  aheadLayers: 8,
+  keepBehind: 3,
   breakthroughCombo: 5,
-  minGapSlices: 2,
   smashBounceVelocity: 4.15,
 });
 
 const scene = new THREE.Scene();
 scene.background = null;
-scene.fog = new THREE.Fog(0xdff7ff, 16, 36);
+scene.fog = new THREE.Fog(0xe9faff, 28, 52);
 
 const initialW = Math.max(gameEl.clientWidth, 320);
 const initialH = Math.max(gameEl.clientHeight, 568);
-const camera = new THREE.PerspectiveCamera(35, initialW / initialH, 0.1, 140);
-camera.position.set(0.22, 5.0, 9.8);
+const camera = new THREE.OrthographicCamera(-3.25, 3.25, 5.78, -5.78, 0.1, 100);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(initialW, initialH, false);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = 1.15;
 renderer.setClearColor(0xffffff, 0);
 gameEl.appendChild(renderer.domElement);
 
-const hemi = new THREE.HemisphereLight(0xf8ffff, 0x88b7c9, 2.9);
+const hemi = new THREE.HemisphereLight(0xfff9ed, 0xb6cce8, .85);
 scene.add(hemi);
-const key = new THREE.DirectionalLight(0xffffff, 3.5);
-key.position.set(6, 10, 8);
-key.castShadow = true;
+const key = new THREE.DirectionalLight(0xfff6e6, 2.4);
+key.position.set(-5, 9, 7);
+key.castShadow = false;
 key.shadow.mapSize.set(1024, 1024);
 key.shadow.camera.left = -8;
 key.shadow.camera.right = 8;
 key.shadow.camera.top = 8;
 key.shadow.camera.bottom = -8;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xffc5e3, 1.25);
-fill.position.set(-7, 3, -5);
+const fill = new THREE.DirectionalLight(0xc3eaff, .8);
+fill.position.set(6, 4, -3);
 scene.add(fill);
 
 const towerRoot = new THREE.Group();
 scene.add(towerRoot);
 
 const textureLoader = new THREE.TextureLoader();
+const artLoads = [];
 function loadArtTexture(url) {
-  const tex = textureLoader.load(url);
+  let tex;
+  artLoads.push(new Promise((resolve, reject) => {
+    tex = textureLoader.load(url, resolve, undefined, () => reject(new Error(`素材加载失败：${url}`)));
+  }));
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   return tex;
 }
 
-const safeJellyTexture = loadArtTexture('./assets/jelly-safe.webp');
-const dangerJellyTexture = loadArtTexture('./assets/jelly-danger.webp');
 const jellyBurstTexture = loadArtTexture('./assets/jelly-burst.svg');
-
-const matCookie = new THREE.MeshPhysicalMaterial({
-  color: 0x8bf4aa,
-  roughness: 0.12,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.05,
-  transmission: 0.26,
-  transparent: true,
-  opacity: 0.90,
-  thickness: 0.85,
-  ior: 1.34,
-  emissive: 0x123d23,
-  emissiveIntensity: 0.035,
-});
-const matCookieAlt = new THREE.MeshPhysicalMaterial({
-  color: 0xb6f9c8,
-  roughness: 0.14,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.06,
-  transmission: 0.22,
-  transparent: true,
-  opacity: 0.91,
-  thickness: 0.82,
-  ior: 1.34,
-});
-const matHazard = new THREE.MeshPhysicalMaterial({
-  color: 0xd91f69,
-  roughness: 0.10,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.04,
-  transmission: 0.16,
-  transparent: true,
-  opacity: 0.94,
-  thickness: 0.90,
-  ior: 1.36,
-  emissive: 0x5a0827,
-  emissiveIntensity: 0.13,
-});
-const matChip = new THREE.MeshPhysicalMaterial({
-  color: 0xd6ffe2,
-  roughness: 0.08,
-  transmission: 0.30,
-  transparent: true,
-  opacity: 0.72,
-  clearcoat: 1,
-});
-
-// Cream-and-pink candy pillar, built as real 3D geometry so depth/occlusion
-// matches the platforms. The dimensions are intentionally slimmer than the
-// jelly ring so the center column stays readable without swallowing gameplay.
-const matPillarCream = new THREE.MeshPhysicalMaterial({
-  color: 0xffe6aa,
-  roughness: 0.34,
-  metalness: 0,
-  clearcoat: 0.88,
-  clearcoatRoughness: 0.10,
-});
-const matPillarCreamAlt = new THREE.MeshPhysicalMaterial({
-  color: 0xffefc4,
-  roughness: 0.31,
-  metalness: 0,
-  clearcoat: 0.92,
-  clearcoatRoughness: 0.09,
-});
-const matCandyPink = new THREE.MeshPhysicalMaterial({
-  color: 0xff78a7,
-  roughness: 0.22,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.05,
-});
-const matCandyWhite = new THREE.MeshPhysicalMaterial({
-  color: 0xfff5ef,
-  roughness: 0.20,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.05,
-});
-const matPawPink = new THREE.MeshPhysicalMaterial({
-  color: 0xff7fa8,
-  roughness: 0.20,
-  metalness: 0,
-  clearcoat: 1,
-  clearcoatRoughness: 0.04,
-});
-const matFaceLine = new THREE.MeshStandardMaterial({
-  color: 0xc96f43,
-  roughness: 0.72,
-  metalness: 0,
-});
-
-const pillarBodyGeo = new THREE.CylinderGeometry(
-  CONFIG.pillarRadius,
-  CONFIG.pillarRadius,
-  CONFIG.layerGap + 0.06,
-  36,
-);
-const candyArcGeo = new THREE.TorusGeometry(
-  CONFIG.pillarRadius + 0.14,
-  0.13,
-  12,
-  12,
-  (TAU / 8) * 0.90,
-);
-candyArcGeo.rotateX(Math.PI / 2);
-const faceGeo = new THREE.SphereGeometry(0.34, 24, 18);
-const earGeo = new THREE.ConeGeometry(0.105, 0.20, 4);
-const eyeGeo = new THREE.TorusGeometry(0.040, 0.008, 6, 14, Math.PI);
-const noseGeo = new THREE.SphereGeometry(0.021, 10, 8);
-const pawPadGeo = new THREE.SphereGeometry(0.105, 16, 12);
-const pawToeGeo = new THREE.SphereGeometry(0.045, 12, 10);
-const sideDotGeo = new THREE.SphereGeometry(0.060, 12, 10);
-
-function createCandyRing() {
-  const group = new THREE.Group();
-  const step = TAU / 8;
-  for (let i = 0; i < 8; i++) {
-    const arc = new THREE.Mesh(candyArcGeo, i % 2 ? matCandyWhite : matCandyPink);
-    arc.rotation.y = -i * step;
-    arc.castShadow = false;
-    arc.receiveShadow = true;
-    group.add(arc);
-  }
-  return group;
-}
-
-function createCatFaceBadge() {
-  const group = new THREE.Group();
-
-  const face = new THREE.Mesh(faceGeo, matPillarCreamAlt);
-  face.scale.set(1.08, 0.82, 0.20);
-  face.castShadow = false;
-  group.add(face);
-
-  const earL = new THREE.Mesh(earGeo, matPillarCreamAlt);
-  earL.position.set(-0.18, 0.22, -0.005);
-  earL.rotation.z = -0.30;
-  earL.rotation.y = Math.PI / 4;
-  earL.scale.z = 0.65;
-  group.add(earL);
-
-  const earR = earL.clone();
-  earR.position.x = 0.18;
-  earR.rotation.z = 0.30;
-  earR.rotation.y = -Math.PI / 4;
-  group.add(earR);
-
-  const eyeL = new THREE.Mesh(eyeGeo, matFaceLine);
-  eyeL.position.set(-0.115, 0.015, 0.074);
-  eyeL.rotation.z = Math.PI;
-  group.add(eyeL);
-
-  const eyeR = eyeL.clone();
-  eyeR.position.x = 0.115;
-  group.add(eyeR);
-
-  const nose = new THREE.Mesh(noseGeo, matFaceLine);
-  nose.position.set(0, -0.035, 0.082);
-  nose.scale.set(1.25, 0.82, 0.65);
-  group.add(nose);
-
-  const mouthL = new THREE.Mesh(eyeGeo, matFaceLine);
-  mouthL.scale.setScalar(0.70);
-  mouthL.position.set(-0.035, -0.080, 0.080);
-  mouthL.rotation.z = 0.15;
-  group.add(mouthL);
-
-  const mouthR = mouthL.clone();
-  mouthR.position.x = 0.035;
-  mouthR.rotation.z = -0.15;
-  group.add(mouthR);
-
-  return group;
-}
-
-function createPawBadge(scale = 1) {
-  const group = new THREE.Group();
-
-  const pad = new THREE.Mesh(pawPadGeo, matPawPink);
-  pad.scale.set(1.30, 1.05, 0.26);
-  pad.position.y = -0.035;
-  group.add(pad);
-
-  const toes = [
-    [-0.105, 0.090],
-    [-0.035, 0.135],
-    [0.035, 0.135],
-    [0.105, 0.090],
-  ];
-  for (const [x, y] of toes) {
-    const toe = new THREE.Mesh(pawToeGeo, matPawPink);
-    toe.scale.set(1, 1, 0.30);
-    toe.position.set(x, y, 0.015);
-    group.add(toe);
-  }
-
-  group.scale.setScalar(scale);
-  return group;
-}
-
-function createPillarModule(index) {
-  const group = new THREE.Group();
-  group.position.y = -index * CONFIG.layerGap;
-
-  const body = new THREE.Mesh(
-    pillarBodyGeo,
-    index % 2 ? matPillarCreamAlt : matPillarCream,
-  );
-  body.position.y = -CONFIG.layerGap / 2;
-  body.castShadow = false;
-  body.receiveShadow = true;
-  group.add(body);
-
-  const ring = createCandyRing();
-  ring.position.y = -0.035;
-  group.add(ring);
-
-  const face = createCatFaceBadge();
-  face.position.set(0, -0.66, CONFIG.pillarRadius + 0.055);
-  group.add(face);
-
-  const paw = createPawBadge(0.82);
-  paw.position.set(0, -1.28, CONFIG.pillarRadius + 0.070);
-  group.add(paw);
-
-  // Small glossy pink decorations on the sides, like the reference pillar.
-  for (const side of [-1, 1]) {
-    const dot = new THREE.Mesh(sideDotGeo, matPawPink);
-    dot.scale.set(0.75, 1.35, 0.65);
-    dot.position.set(side * 0.56, -0.92, 0.50);
-    group.add(dot);
-  }
-
-  if (index === 0) {
-    const topRim = new THREE.Mesh(
-      new THREE.TorusGeometry(CONFIG.pillarRadius + 0.05, 0.17, 16, 40),
-      matPillarCreamAlt,
-    );
-    topRim.rotation.x = Math.PI / 2;
-    topRim.position.y = 0.30;
-    group.add(topRim);
-
-    const innerTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(CONFIG.pillarRadius * 0.70, CONFIG.pillarRadius * 0.70, 0.075, 36),
-      new THREE.MeshStandardMaterial({ color: 0xd59a55, roughness: 0.72 }),
-    );
-    innerTop.position.y = 0.255;
-    group.add(innerTop);
-  }
-
-  pillarRoot.add(group);
-  pillarModules.set(index, group);
-}
+const art = createArt(renderer, scene, CONFIG, loadArtTexture);
+const matCookie = art.materials.crumb;
+const matCookieAlt = art.materials.bubble;
+const matChip = art.materials.ivory;
+const pillarRoot = new THREE.Group();
+scene.add(pillarRoot);
+const pillarModules = new Map();
 
 function ensurePillarModules() {
-  const start = Math.max(0, rules.depth - CONFIG.keepBehind - 1);
-  const end = rules.depth + CONFIG.aheadLayers + 2;
-
+  const start = Math.max(-4, rules.depth - CONFIG.keepBehind - 3);
+  const end = rules.depth + CONFIG.aheadLayers + 1;
   for (let i = start; i <= end; i++) {
-    if (!pillarModules.has(i)) createPillarModule(i);
+    if (!pillarModules.has(i)) {
+      const module = art.createColumn(i);
+      pillarRoot.add(module);
+      pillarModules.set(i, module);
+    }
   }
-
   for (const [i, group] of pillarModules) {
-    if (i < start - 1 || i > end + 1) {
+    if (i < start || i > end) {
       pillarRoot.remove(group);
       pillarModules.delete(i);
     }
   }
 }
-
 function clearPillarModules() {
-  for (const group of pillarModules.values()) pillarRoot.remove(group);
+  pillarRoot.clear();
   pillarModules.clear();
 }
 
-const safeSpriteMat = new THREE.SpriteMaterial({
-  map: safeJellyTexture,
-  transparent: true,
-  depthTest: true,
-  depthWrite: false,
-});
-const dangerSpriteMat = new THREE.SpriteMaterial({
-  map: dangerJellyTexture,
-  transparent: true,
-  depthTest: true,
-  depthWrite: false,
-});
-
-// The pillar is a real Three.js object. It intentionally lives outside
-// towerRoot so dragging rotates the jelly platforms around a stationary
-// center column instead of rotating a fake screen-space background.
-const pillarRoot = new THREE.Group();
-scene.add(pillarRoot);
-const pillarModules = new Map();
-
-// Background decoration now comes from the actual jelly-paradise artwork.
-const decoGroup = new THREE.Group();
-scene.add(decoGroup);
-
 const catSources = {
-  idle: './assets/cat-idle.webp',
-  fall: './assets/cat-fall.webp',
-  eat: './assets/cat-fall.webp',
-  squash: './assets/cat-squash.webp',
-  fail: './assets/cat-fail.webp',
+  idle: './assets/cat-idle-hd.png',
+  fall: './assets/cat-fall-hd.png',
+  eat: './assets/cat-eat-hd.png',
+  squash: './assets/cat-idle-hd.png',
+  fail: './assets/cat-fail-hd.png',
 };
-
+const catTextures = Object.fromEntries(Object.entries(catSources).map(([key, url]) => [key, loadArtTexture(url)]));
 function createCat() {
   const root = new THREE.Group();
   root.position.set(0, 0, CONFIG.catZ);
   scene.add(root);
-
-  const visual = new THREE.Group();
+  const visual = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: catTextures.idle, transparent: true, alphaTest: .025,
+    depthWrite: false, toneMapped: false,
+  }));
+  visual.center.set(.5, .065);
   root.add(visual);
-
   const mouthAnchor = new THREE.Object3D();
-  mouthAnchor.position.set(0, 0.14, 0.10);
+  mouthAnchor.position.set(0, .48, .12);
   root.add(mouthAnchor);
-
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.40, 30),
-    new THREE.MeshBasicMaterial({ color: 0x315c55, transparent: true, opacity: 0.13, depthWrite: false }),
-  );
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(.34, 32), new THREE.MeshBasicMaterial({
+    color: 0x258451, transparent: true, opacity: .16, depthWrite: false,
+  }));
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(0, -0.38, 0);
   root.add(shadow);
-
-  return {
-    root,
-    visual,
-    mouthAnchor,
-    shadow,
-    currentTexture: 'idle',
-    eatTimer: 0,
-  };
+  return { root, visual, mouthAnchor, shadow, currentTexture: 'idle', eatTimer: 0 };
 }
-
 function setCatTexture(name) {
   if (cat.currentTexture === name) return;
   cat.currentTexture = name;
-  catDom.src = catSources[name];
+  cat.visual.material.map = catTextures[name];
 }
-
 const cat = createCat();
 
 const rules = new GameRules({ initialJumps: CONFIG.initialJumps, maxJumps: CONFIG.maxJumps });
@@ -629,118 +690,15 @@ let generator = new LayerGenerator((Date.now() ^ 0xA11CE) >>> 0);
 const layers = new Map();
 const effects = [];
 
-// Large rounded jelly blocks: twelve chunky pieces around the tower, matching
-// the approved art direction instead of dozens of thin radial slivers.
-const SLICE = TAU / CONFIG.sliceCount;
-function roundedRectShape(width, depth, radius) {
-  const w = width / 2;
-  const d = depth / 2;
-  const r = Math.min(radius, w, d);
-  const s = new THREE.Shape();
-  s.moveTo(-w + r, -d);
-  s.lineTo(w - r, -d);
-  s.quadraticCurveTo(w, -d, w, -d + r);
-  s.lineTo(w, d - r);
-  s.quadraticCurveTo(w, d, w - r, d);
-  s.lineTo(-w + r, d);
-  s.quadraticCurveTo(-w, d, -w, d - r);
-  s.lineTo(-w, -d + r);
-  s.quadraticCurveTo(-w, -d, -w + r, -d);
-  s.closePath();
-  return s;
-}
-function createJellyBlockGeometry(width, depth, height) {
-  const geo = new THREE.ExtrudeGeometry(
-    roundedRectShape(width, depth, 0.22),
-    {
-      depth: height,
-      steps: 1,
-      bevelEnabled: true,
-      bevelSegments: 3,
-      bevelSize: 0.075,
-      bevelThickness: 0.075,
-      curveSegments: 7,
-    },
-  );
-  geo.rotateX(Math.PI / 2);
-  geo.translate(0, height / 2, 0);
-  geo.computeVertexNormals();
-  return geo;
-}
-const JELLY_RADIUS = 2.08;
-const jellyBlockGeo = createJellyBlockGeometry(0.92, 1.55, CONFIG.platformThickness);
-const cookieChunkGeo = new THREE.BoxGeometry(0.24, 0.14, 0.22);
-const crumbGeo = new THREE.SphereGeometry(0.065, 8, 7);
-
-function arcType(layerData, angle) {
-  if (layerData.gaps.some((g) => angleInArc(angle, g.start, g.width))) return 'gap';
-  if (layerData.hazards.some((h) => angleInArc(angle, h.start, h.width))) return 'hazard';
-  return 'safe';
-}
-
-function enforceVisiblePrimaryGap(data) {
-  const requestedSlices = Math.ceil(data.gaps[0].width / SLICE);
-  const gapSlices = Math.max(CONFIG.minGapSlices, requestedSlices);
-  const centerIndex = Math.floor(normalizeAngle(data.primaryAngle) / SLICE);
-  const firstIndex = centerIndex - Math.floor((gapSlices - 1) / 2);
-  const start = normalizeAngle(firstIndex * SLICE);
-  const width = gapSlices * SLICE;
-
-  data.gaps[0] = { start, width };
-  data.primaryAngle = normalizeAngle(start + width / 2);
-  data.width = width;
-  return gapSlices;
-}
+const cookieChunkGeo = new THREE.IcosahedronGeometry(.15, 0);
+const crumbGeo = new THREE.SphereGeometry(.045, 8, 6);
 
 function makeLayer(index) {
-  const data = generator.create(index, rules.jumps <= 2);
-  const requiredGapSlices = enforceVisiblePrimaryGap(data);
-  const group = new THREE.Group();
+  const data = generator.create(Math.max(0, index), rules.jumps <= 2);
+  const { group, segments } = art.createPlatform(data, index);
   group.position.y = -index * CONFIG.layerGap;
   towerRoot.add(group);
-
-  const segments = [];
-  let renderedGapSlices = 0;
-  for (let i = 0; i < CONFIG.sliceCount; i++) {
-    const angle = i * SLICE + SLICE / 2;
-    const type = arcType(data, angle);
-    if (type === 'gap') {
-      renderedGapSlices += 1;
-      continue;
-    }
-
-    const cell = new THREE.Group();
-    cell.position.set(Math.sin(angle) * JELLY_RADIUS, 0, Math.cos(angle) * JELLY_RADIUS);
-    cell.rotation.y = angle;
-    group.add(cell);
-
-    const base = new THREE.Mesh(
-      jellyBlockGeo,
-      type === 'hazard' ? matHazard : (i % 2 ? matCookie : matCookieAlt),
-    );
-    base.castShadow = false;
-    base.receiveShadow = true;
-    cell.add(base);
-
-    // Actual approved jelly artwork is layered on top of the physical block.
-    // It carries the bubbles, glossy edge, paw imprint / poison skull.
-    const art = new THREE.Sprite(type === 'hazard' ? dangerSpriteMat.clone() : safeSpriteMat.clone());
-    art.position.set(0, CONFIG.platformThickness * 0.34, 0.04);
-    art.scale.set(type === 'hazard' ? 1.28 : 1.24, type === 'hazard' ? 1.28 : 1.24, 1);
-    art.material.rotation = -angle;
-    art.renderOrder = 4;
-    cell.add(art);
-
-    segments.push(cell);
-  }
-
-  if (renderedGapSlices < requiredGapSlices) {
-    console.error('Invalid jelly layer: visible gap missing', { index, renderedGapSlices, requiredGapSlices, data });
-    towerRoot.remove(group);
-    return makeLayer(index);
-  }
-
-  const layer = { index, data, group, segments, eaten: false };
+  const layer = { index, data, group, segments, eaten: index < 0 };
   layers.set(index, layer);
   return layer;
 }
@@ -753,14 +711,14 @@ function ensureLayers() {
   }
   for (const [i, layer] of layers) {
     if (i < rules.depth - CONFIG.keepBehind) {
-      towerRoot.remove(layer.group);
+      disposePlatform(layer.group);
       layers.delete(i);
     }
   }
 }
 
 function clearLayers() {
-  for (const layer of layers.values()) towerRoot.remove(layer.group);
+  for (const layer of layers.values()) disposePlatform(layer.group);
   layers.clear();
 }
 
@@ -809,10 +767,10 @@ function spawnPlusOne() {
 let pulse = 0;
 let squash = 0;
 let deadShown = false;
+let gameOverTimer;
 let state = 'idle';
 let vy = 0;
 let landingTimer = 0;
-let previousBottom = 0;
 let firstInput = false;
 let smashReady = false;
 let smashLayer = null;
@@ -864,7 +822,7 @@ function cleanupLayersAbove(landedIndex) {
   for (const layer of stale) {
     layer.eaten = true;
     spawnEatFragments(layer);
-    towerRoot.remove(layer.group);
+    disposePlatform(layer.group);
     layers.delete(layer.index);
   }
 }
@@ -947,7 +905,7 @@ function beginEat(layer) {
   updateHUD();
 
   spawnEatFragments(layer);
-  towerRoot.remove(layer.group);
+  disposePlatform(layer.group);
   layers.delete(layer.index);
 }
 
@@ -984,7 +942,7 @@ function resolveLandingSmash() {
   rules.passLayer();
   spawnPlusOne();
   spawnEatFragments(layer);
-  towerRoot.remove(layer.group);
+  disposePlatform(layer.group);
   layers.delete(layer.index);
   rules.land();
 
@@ -1014,7 +972,7 @@ function hitHazard() {
 function showGameOver(reason) {
   if (deadShown) return;
   deadShown = true;
-  setTimeout(() => {
+  gameOverTimer = setTimeout(() => {
     hud.finalDepth.textContent = `${rules.depth} 层`;
     hud.finalCombo.textContent = `×${rules.bestCombo}`;
     hud.finalScore.textContent = String(rules.score);
@@ -1032,19 +990,22 @@ function showGameOver(reason) {
 }
 
 function resetGame() {
+  clearTimeout(gameOverTimer);
   rules.reset();
   generator = new LayerGenerator((Date.now() ^ ((Math.random() * 0xffffffff) >>> 0)) >>> 0);
   clearLayers();
   clearPillarModules();
-  for (const fx of effects) scene.remove(fx.mesh);
+  for (const fx of effects) disposeEffect(fx);
   effects.length = 0;
+  frameEl.querySelectorAll('.plus-one').forEach(el => el.remove());
+  hud.combo.classList.remove('show');
   towerRoot.rotation.y = 0;
   cat.root.position.set(0, CONFIG.platformThickness / 2 + getCatRadius(), CONFIG.catZ);
   cat.root.rotation.set(0, 0, 0);
   cat.visual.scale.setScalar(targetCatScale());
   cat.eatTimer = 0;
   setCatTexture('idle');
-  catDom.style.transform = 'translate(-50%,-50%) scale(1)';
+
   deadShown = false;
   smashReady = false;
   smashLayer = null;
@@ -1052,17 +1013,29 @@ function resetGame() {
   smashBaseY = 0;
   pulse = 0;
   squash = 0;
-  state = 'landed';
+  state = 'ready';
+  firstInput = false;
+  hud.toast.classList.remove('hide');
   vy = 0;
   // Show the configured initial count before the first real takeoff consumes one.
   landingTimer = 0.34;
+  makeLayer(-2);
+  makeLayer(-1);
   ensureLayers();
   ensurePillarModules();
+  towerRoot.rotation.y = -layers.get(0).data.primaryAngle + .95;
+  cameraFocusY = cat.root.position.y - 1.45;
   hud.gameOver.classList.add('hidden');
   updateHUD();
 }
 
 hud.restartBtn.addEventListener('click', resetGame);
+
+function disposeEffect(fx) {
+  scene.remove(fx.mesh);
+  if (fx.kind === 'burst' || fx.kind === 'ring') fx.mesh.material.dispose();
+  if (fx.kind === 'ring') fx.mesh.geometry.dispose();
+}
 
 function updateEatAnimations(dt) {
   const mouth = getMouthWorldPosition();
@@ -1188,16 +1161,21 @@ function updateCat(dt) {
 
   const sx = base * (1 + pulse + squash * 0.12) * (isFalling ? 0.96 : 1);
   const sy = base * (1 + pulse * 0.55 - squash * 0.18) * (isFalling ? 1.04 : 1);
-  const sz = base;
-  cat.visual.scale.x = THREE.MathUtils.lerp(cat.visual.scale.x, sx, 1 - Math.exp(-14 * dt));
-  cat.visual.scale.y = THREE.MathUtils.lerp(cat.visual.scale.y, sy, 1 - Math.exp(-14 * dt));
-  cat.visual.scale.z = THREE.MathUtils.lerp(cat.visual.scale.z, sz, 1 - Math.exp(-14 * dt));
-
-  const domScale = THREE.MathUtils.clamp(0.88 + pulse * 0.40 + squash * 0.08, 0.78, 1.12);
-  const domY = state === 'smashCharge' ? 1.09 : (isFalling ? 1.02 : 1);
-  const domX = state === 'smashCharge' ? 1.08 : 1;
-  const domTilt = isFalling ? Math.sin(performance.now() * 0.010) * 3.2 : 0;
-  catDom.style.transform = `translate(-50%,-50%) rotate(${domTilt}deg) scale(${domScale * domX}, ${domScale / domY})`;
+  cat.visual.scale.x = THREE.MathUtils.lerp(cat.visual.scale.x, 1.85 * sx, dt ? 1 - Math.exp(-14 * dt) : 1);
+  cat.visual.scale.y = THREE.MathUtils.lerp(cat.visual.scale.y, 1.85 * sy, dt ? 1 - Math.exp(-14 * dt) : 1);
+  cat.visual.scale.z = 1;
+  cat.visual.position.y = -getCatRadius() + .08;
+  cat.visual.material.rotation = isFalling ? Math.sin(performance.now() * .008) * .035 : 0;
+  if (state === 'ready') {
+    cat.visual.position.y += Math.sin(performance.now() * .0025) * .055;
+  }
+  // The ground shadow stays on the next platform while the cat rises above it.
+  const ground = [...layers.values()].filter(l => !l.eaten && layerTopY(l) <= cat.root.position.y).sort((a,b) => a.index-b.index)[0];
+  cat.shadow.visible = !!ground && platformStatus(ground) !== 'gap';
+  if (ground) {
+    cat.shadow.position.y = layerTopY(ground) - cat.root.position.y + .014;
+    cat.shadow.scale.setScalar(Math.max(.4, 1 - (cat.root.position.y - layerTopY(ground)) * .22));
+  }
 
   if (!rules.alive || state === 'hazardDead' || state === 'starved') {
     setCatTexture('fail');
@@ -1222,14 +1200,14 @@ function updateCat(dt) {
 
 let cameraFocusY = 0;
 function updateCamera(dt) {
-  const targetY = cat.root.position.y - 0.10;
-  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-9.0 * dt));
-  camera.position.y = cameraFocusY + 4.72;
-  camera.position.x = 0.16;
-  camera.position.z = 10.30;
-  camera.lookAt(0, cameraFocusY - 0.18, 0.96);
-
-  decoGroup.position.y = cameraFocusY * 0.40;
+  // Follow descent without chasing each small bounce.
+  const targetY = cat.root.position.y - 1.45;
+  const speed = targetY < cameraFocusY ? 9 : 1.6;
+  cameraFocusY = THREE.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-speed * dt));
+  cameraFocusY = Math.min(cameraFocusY, targetY + .75);
+  camera.position.set(0, cameraFocusY + 8.2, 20);
+  camera.lookAt(0, cameraFocusY, 0);
+  art.animate(performance.now() / 1000, cameraFocusY);
 }
 
 let dragging = false;
@@ -1241,6 +1219,8 @@ function pointerDown(e) {
   renderer.domElement.setPointerCapture?.(e.pointerId);
   if (!firstInput) {
     firstInput = true;
+    state = 'landed';
+    landingTimer = .12;
     hud.toast.classList.add('hide');
   }
 }
@@ -1261,9 +1241,11 @@ renderer.domElement.addEventListener('pointerup', pointerUp);
 renderer.domElement.addEventListener('pointercancel', pointerUp);
 
 function resize() {
-  const w = Math.max(gameEl.clientWidth, 320);
-  const h = Math.max(gameEl.clientHeight, 568);
-  camera.aspect = w / h;
+  const w = Math.max(gameEl.clientWidth, 1);
+  const h = Math.max(gameEl.clientHeight, 1);
+  const viewWidth = Math.max(6.25, 10.5 * w / h);
+  camera.left = -viewWidth / 2; camera.right = viewWidth / 2;
+  camera.top = viewWidth * h / w / 2; camera.bottom = -camera.top;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -1284,6 +1266,27 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+resize();
 resetGame();
+updateCat(0);
+updateCamera(0);
+if (debugMode) {
+  globalThis.__GAME_DEBUG__ = {
+    rules, layers, towerRoot, cat, renderer, camera, resetGame,
+    get state() { return state; },
+    alignGap() {
+      const next = [...layers.values()].filter(l => !l.eaten).sort((a,b) => a.index-b.index)[0];
+      if (next) towerRoot.rotation.y = -next.data.primaryAngle;
+    },
+    aimAt(type) {
+      const next = [...layers.values()].filter(l => !l.eaten).sort((a,b) => a.index-b.index)[0];
+      const span = next && platformSpans(next.data).find(s => s.type === type);
+      if (span) towerRoot.rotation.y = -(span.start + span.width / 2);
+      return !!span;
+    },
+    snapshot() { return { state, depth: rules.depth, jumps: rules.jumps, objects: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries }; },
+  };
+}
+await Promise.all(artLoads);
 loadingEl.classList.add('hidden');
 requestAnimationFrame(frame);

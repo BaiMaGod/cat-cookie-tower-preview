@@ -1,19 +1,15 @@
 name: Deploy preview site
-
 on:
   push:
     branches: ["main"]
   workflow_dispatch:
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
   group: "pages"
   cancel-in-progress: false
-
 jobs:
   deploy:
     environment:
@@ -27,7 +23,7 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html app.css boot.bundle.js game.bundle.js _site/
-          cp -R assets _site/assets
+          cp -R assets vendor _site/
           touch _site/.nojekyll
       - name: Setup Pages
         uses: actions/configure-pages@v5

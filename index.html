@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#8ddcff" />
-  <title>猫咪果冻塔</title>
-  <link rel="stylesheet" href="./app.css?v=239" />
+  <title>胖猫跳跳塔 · 果冻乐园</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./app.css?v=f304081" />
 </head>
 <body>
   <main id="phoneFrame" class="phone-frame">
-    <div id="game"></div>
-    <img id="catSprite" class="cat-sprite" src="./assets/cat-idle.webp" alt="" />
+    <div class="world-backdrop" aria-hidden="true"></div>
+    <div id="game" aria-label="左右拖动旋转果冻塔"></div>
 
     <div id="hud" class="hud">
       <div class="hud-card stat">
@@ -22,17 +23,19 @@
         <span class="stat-copy"><span class="label">弹跳</span><strong id="jumps">× 5</strong></span>
       </div>
       <div class="hud-card stat right">
-        <img class="hud-icon" src="./assets/icon-score.svg" alt="" />
+        <img class="hud-icon" src="./assets/star-hd.png" alt="" />
         <span class="stat-copy"><span class="label">分数</span><strong id="score">0</strong></span>
       </div>
     </div>
 
     <div id="combo" class="combo">连吃 ×2</div>
-    <div id="toast" class="toast">左右滑动旋转果冻塔</div>
+    <div class="world-label" aria-hidden="true">✦ 果冻乐园 ✦</div>
+    <div id="toast" class="toast"><span class="swipe-hint">‹ <i></i> ›</span><strong>左右滑动，旋转果冻塔</strong><small>对准缺口往下跳 · 连吃果冻补充弹跳</small></div>
 
     <div id="gameOver" class="overlay hidden">
       <div class="card">
-        <div id="deathEmoji" class="death-emoji">😿</div>
+        <img class="result-cat" src="./assets/cat-fail-hd.png" alt="" />
+        <div id="deathEmoji" class="death-emoji" hidden>😿</div>
         <h1 id="deathTitle">没力气啦！</h1>
         <p id="deathText">多吃几层果冻，补充弹跳次数。</p>
         <div class="results">
@@ -46,13 +49,13 @@
 
     <div id="loading" class="overlay loading">
       <div class="loader-card">
-        <img class="loader-cat" src="./assets/cat-idle.webp" alt="" />
-        <h1>猫咪果冻塔</h1>
+        <img class="loader-cat" src="./assets/cat-idle-hd.png" alt="" />
+        <h1>胖猫跳跳塔</h1>
         <p>正在进入果冻乐园……</p>
       </div>
     </div>
   </main>
 
-  <script type="module" src="./boot.bundle.js?v=239"></script>
+  <script type="module" src="./boot.bundle.js?v=f304081"></script>
 </body>
 </html>
