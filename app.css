@@ -101,7 +101,7 @@ body {
   grid-template-columns: 38% 62%;
   align-items: center;
   padding: 13px 10px 10px 20px;
-  background: linear-gradient(160deg, rgba(255,255,255,.97), rgba(255,245,235,.94)); border: 2px solid rgba(255,169,199,.72); border-radius: 23px;
+  background: url('./assets/ui-hud-game.png') center / 100% 100% no-repeat;
   filter: drop-shadow(0 4px 3px rgba(137,79,61,.18));
 }
 .stat-copy { display: flex; flex-direction: column; align-items: center; min-width: 0; line-height: 1; }
@@ -194,7 +194,7 @@ body {
   position: relative;
   width: min(100%, 365px, 75dvh);
   aspect-ratio: 4 / 5;
-  background: linear-gradient(160deg, rgba(255,255,255,.98), rgba(255,240,222,.98)); border: 3px solid rgba(255,177,207,.78); border-radius: 32px;
+  background: url('./assets/ui-results-game.png') center / 100% 100% no-repeat;
   filter: drop-shadow(0 18px 26px rgba(87,37,58,.26));
   text-align: center;
   color: #874a2b;

@@ -1,6 +1,197 @@
-/* cat-cookie-tower v3.1.0 production preview | source c5bdd520 | no sourcemap */
+/* cat-cookie-tower V1.0.0 production preview | source aeaf6a0e | no sourcemap */
+
+const __mod_candy_jelly_material = (() => {
 const THREE = globalThis.__THREE__;
-if (!THREE) throw new Error('Three.js 未加载');
+
+// Physical reflections and absorption, without a luminous outline or painted circles.
+function createCandyJellyMaterial(config, danger = false) {
+  const material = new THREE.MeshPhysicalMaterial({
+    color: danger ? '#f51775' : '#99fa98', metalness: 0, roughness: .012, transmission: .91,
+    thickness: config.platformThickness * .55, ior: 1.22,
+    attenuationColor: danger ? '#760025' : '#31cc4c', attenuationDistance: danger ? .17 : .52,
+    clearcoat: .8, clearcoatRoughness: .035, envMapIntensity: 1.15,
+  });
+  material.userData.platformStyle = 'candy-jelly';
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = `attribute vec3 candyCoord; varying vec3 vCandy;\n${shader.vertexShader}`
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCandy = candyCoord;');
+    shader.fragmentShader = `varying vec3 vCandy;\n${shader.fragmentShader}`;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      float centerDepth = (1.0 - pow(abs(vCandy.x), 3.0)) * (1.0 - pow(abs(vCandy.z), 3.0));
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(${danger ? '.62, .30, .68' : '.64, .94, .63'}), centerDepth * .62);
+    `);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <transmission_fragment>',
+      THREE.ShaderChunk.transmission_fragment.replace('material.thickness = thickness;',
+        'material.thickness = thickness * (.38 + centerDepth * .92);'));
+  };
+  material.customProgramCacheKey = () => `volume-jelly-v2-${danger}`;
+  return material;
+}
+
+// Real sphere geometry, shaded as an air pocket. The jelly shell refracts it
+// through the shared transmission buffer; this is a stylized inclusion model.
+function createAirPocketMaterial(danger = false) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      body: { value: new THREE.Color(danger ? '#c50958' : '#65db6f') },
+      lightColor: { value: new THREE.Color(danger ? '#ff92bc' : '#e5ffc2') },
+    },
+    vertexShader: `
+      varying vec3 bubbleNormal;
+      varying vec3 bubbleEye;
+      void main() {
+        vec4 p = vec4(position, 1.0);
+        vec3 n = normal;
+        #ifdef USE_INSTANCING
+          p = instanceMatrix * p;
+          n = mat3(instanceMatrix) * n;
+        #endif
+        vec4 mv = modelViewMatrix * p;
+        bubbleNormal = normalize(normalMatrix * n);
+        bubbleEye = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 body, lightColor;
+      varying vec3 bubbleNormal, bubbleEye;
+      void main() {
+        vec3 n = normalize(bubbleNormal);
+        float facing = max(0.0, dot(n, normalize(bubbleEye)));
+        float rim = pow(1.0 - facing, 2.2);
+        float upperReflection = pow(max(0.0, dot(n, normalize(vec3(-.45,.65,.75)))), 42.0);
+        float lowerReflection = pow(max(0.0, dot(n, normalize(vec3(.48,-.68,.5)))), 65.0);
+        vec3 color = body * (.65 + .35 * n.y);
+        color = mix(color, lightColor, rim * .8);
+        color += vec3(1.0) * upperReflection * 2.5 + lightColor * lowerReflection * 1.2;
+        gl_FragColor = vec4(color, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+return { createCandyJellyMaterial, createAirPocketMaterial };
+})();
+
+const __mod_classic_material = (() => {
+const THREE = globalThis.__THREE__;
+
+// Stylized jelly: opaque depth gives stable overlapping rings on mobile, while
+// rim lighting, embedded bubbles and reflection bands suggest a translucent sweet.
+function createClassicMaterial(danger = false) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTop: { value: new THREE.Color(danger ? '#f52280' : '#74ef8a') },
+      uBody: { value: new THREE.Color(danger ? '#a80043' : '#069b53') },
+      uGlow: { value: new THREE.Color(danger ? '#ffc1df' : '#e0ffb2') },
+    },
+    vertexShader: `
+      varying vec3 vLocal;
+      varying vec3 vLocalNormal;
+      varying vec3 vNormalView;
+      varying vec3 vEye;
+      void main() {
+        vLocal = position;
+        vLocalNormal = normal;
+        vNormalView = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vEye = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uTop;
+      uniform vec3 uBody;
+      uniform vec3 uGlow;
+      varying vec3 vLocal;
+      varying vec3 vLocalNormal;
+      varying vec3 vNormalView;
+      varying vec3 vEye;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      void main() {
+        vec3 n = normalize(vNormalView);
+        vec3 eye = normalize(vEye);
+        float facing = clamp(dot(n, eye), 0.0, 1.0);
+        float rim = pow(1.0 - facing, 2.7);
+        float height = smoothstep(-.30, .30, vLocal.y);
+        vec3 color = mix(uBody, uTop, height * .78);
+        vec3 light = normalize(vec3(-.55, .8, .8));
+        float diffuse = max(0.0, dot(n, light));
+        color *= .77 + diffuse * .34;
+        color = mix(color, uGlow, rim * .48);
+        // Curved edges catch narrow white softbox highlights.
+        vec3 reflected = reflect(-eye, n);
+        float strip = pow(max(0.0, 1.0 - abs(reflected.x + .42) * 4.0), 12.0);
+        float strip2 = pow(max(0.0, 1.0 - abs(reflected.x - .72) * 7.0), 14.0);
+        float spec = pow(max(0.0, dot(n, normalize(light + eye))), 85.0);
+        color += vec3(1.0, 1.0, .89) * (spec * .95 + (strip * .9 + strip2 * .6) * (.35 + rim));
+        // A stable surface pattern, attached to the geometry as the tower turns.
+        bool onTop = vLocal.y > .245;
+        float radial = abs(dot(normalize(vLocalNormal.xz), normalize(vLocal.xz)));
+        vec2 sideUV = radial > .7 ? vec2(atan(vLocal.x, vLocal.z) * 2.55, vLocal.y) : vec2(length(vLocal.xz), vLocal.y);
+        vec2 uv = onTop ? vLocal.xz * 4.3 : sideUV * 4.3;
+        vec2 cell = floor(uv);
+        float seed = hash(cell);
+        vec2 center = vec2(.2 + .6 * seed, .2 + .6 * hash(cell + 41.0));
+        vec2 delta = fract(uv) - center;
+        float radius = .045 + .24 * seed * seed;
+        float d = length(delta);
+        float edge = 1.0 - smoothstep(.012, .037, abs(d - radius));
+        float inside = 1.0 - smoothstep(radius - .025, radius, d);
+        float shine = 1.0 - smoothstep(.008, .043, length(delta - vec2(-radius * .37, radius * .44)));
+        float visible = step(.43, seed);
+        color = mix(color, color * .70, inside * visible * .19);
+        color += uGlow * visible * (edge * .22 + shine * .60);
+        if (onTop) {
+          float diagonal = dot(vLocal.xz, vec2(.8, .6));
+          float lacquer = exp(-pow((diagonal - .65) / .14, 2.0)) * .20
+                        + exp(-pow((diagonal + .30) / .04, 2.0)) * .15;
+          color += vec3(.85, 1.0, .8) * lacquer;
+        }
+        gl_FragColor = vec4(color, 1.0);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+return { createClassicMaterial };
+})();
+
+const __mod_jelly_motion = (() => {
+const JELLY_CONTACT_TIME = Math.PI / 20;
+
+// Positive compression, a small overshoot, then decay to the exact rest shape.
+function jellyCompression(time, strength) {
+  if (time < 0 || time >= .9) return 0;
+  return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
+}
+
+return { jellyCompression, JELLY_CONTACT_TIME };
+})();
+
+const __mod_game_assets = (() => {
+// Both clients use the same screen-sized assets; source artwork remains in assets/.
+const GAME_ASSETS = Object.freeze({
+  world: './assets/world-hd.png', column: './assets/column-hd.png',
+  idle: './assets/cat-idle-game.png', fall: './assets/cat-fall-game.png',
+  eat: './assets/cat-eat-game.png', fail: './assets/cat-fail-game.png',
+  hud: './assets/ui-hud-game.png', depth: './assets/ui-depth-game.png',
+  bounce: './assets/ui-bounce-game.png', score: './assets/star-game.png',
+  result: './assets/ui-results-game.png',
+});
+const CAT_SOURCES = Object.freeze({
+  idle: GAME_ASSETS.idle, fall: GAME_ASSETS.fall, eat: GAME_ASSETS.eat,
+  squash: GAME_ASSETS.idle, fail: GAME_ASSETS.fail,
+});
+
+return { GAME_ASSETS, CAT_SOURCES };
+})();
+
+const __mod_logic = (() => {
 const TAU = Math.PI * 2;
 
 function normalizeAngle(a) {
@@ -213,166 +404,230 @@ class LayerGenerator {
   }
 }
 
-const JELLY_CONTACT_TIME = Math.PI / 20;
+return { normalizeAngle, angleInArc, platformSpans, GameRules, SeededRandom, LayerGenerator, TAU };
+})();
 
-// Positive compression, a small overshoot, then decay to the exact rest shape.
-function jellyCompression(time, strength) {
-  if (time < 0 || time >= .9) return 0;
-  return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
-}
+const __mod_eat_effects = (() => {
+// Shared gameplay presentation: identical fragments and timing on Web and WeChat.
+function createEatEffects(THREE, scene, towerRoot, CONFIG, materials, getMouthWorldPosition, createCanvas, onEat = () => {}) {
+  const TAU = Math.PI * 2;
+  const effects = [];
+  const cookieChunkGeo = new THREE.IcosahedronGeometry(.15, 0);
+  const crumbGeo = new THREE.SphereGeometry(.045, 8, 6);
+  const matCookie = materials.crumb, matCookieAlt = materials.bubble, matChip = materials.ivory;
+  const chunkBuckets = new Map();
+  const chunkTransform = new THREE.Object3D();
+  const ringGeo = new THREE.TorusGeometry(0.34, 0.03, 8, 32);
+  const jellyBurstTexture = createBurstTexture(THREE, createCanvas);
+  function chunkBucket(geometry, material) {
+    const key = `${geometry.id}:${material.id}`;
+    if (!chunkBuckets.has(key)) {
+      // At most nine nearby layers can break together; 512 covers their chunks.
+      const mesh = new THREE.InstancedMesh(geometry, material, 512);
+      mesh.count = 0;
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      scene.add(mesh);
+      chunkBuckets.set(key, { mesh, count: 0 });
+    }
+    return chunkBuckets.get(key);
+  }
+  function spawnJellyBurst(position, scale = 1.55) {
+    const mat = new THREE.SpriteMaterial({
+      map: jellyBurstTexture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      opacity: 0.88,
+    });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.copy(position);
+    sprite.scale.set(scale, scale, 1);
+    sprite.renderOrder = 15;
+    scene.add(sprite);
+    effects.push({ kind: 'burst', mesh: sprite, duration: 0.34, t: 0, initialScale: scale });
+  }
 
-// Stylized jelly: opaque depth gives stable overlapping rings on mobile, while
-// rim lighting, embedded bubbles and reflection bands suggest a translucent sweet.
-function createClassicMaterial(danger = false) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTop: { value: new THREE.Color(danger ? '#f52280' : '#74ef8a') },
-      uBody: { value: new THREE.Color(danger ? '#a80043' : '#069b53') },
-      uGlow: { value: new THREE.Color(danger ? '#ffc1df' : '#e0ffb2') },
-    },
-    vertexShader: `
-      varying vec3 vLocal;
-      varying vec3 vLocalNormal;
-      varying vec3 vNormalView;
-      varying vec3 vEye;
-      void main() {
-        vLocal = position;
-        vLocalNormal = normal;
-        vNormalView = normalize(normalMatrix * normal);
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vEye = -mv.xyz;
-        gl_Position = projectionMatrix * mv;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uTop;
-      uniform vec3 uBody;
-      uniform vec3 uGlow;
-      varying vec3 vLocal;
-      varying vec3 vLocalNormal;
-      varying vec3 vNormalView;
-      varying vec3 vEye;
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
-      void main() {
-        vec3 n = normalize(vNormalView);
-        vec3 eye = normalize(vEye);
-        float facing = clamp(dot(n, eye), 0.0, 1.0);
-        float rim = pow(1.0 - facing, 2.7);
-        float height = smoothstep(-.30, .30, vLocal.y);
-        vec3 color = mix(uBody, uTop, height * .78);
-        vec3 light = normalize(vec3(-.55, .8, .8));
-        float diffuse = max(0.0, dot(n, light));
-        color *= .77 + diffuse * .34;
-        color = mix(color, uGlow, rim * .48);
-        // Curved edges catch narrow white softbox highlights.
-        vec3 reflected = reflect(-eye, n);
-        float strip = pow(max(0.0, 1.0 - abs(reflected.x + .42) * 4.0), 12.0);
-        float strip2 = pow(max(0.0, 1.0 - abs(reflected.x - .72) * 7.0), 14.0);
-        float spec = pow(max(0.0, dot(n, normalize(light + eye))), 85.0);
-        color += vec3(1.0, 1.0, .89) * (spec * .95 + (strip * .9 + strip2 * .6) * (.35 + rim));
-        // A stable surface pattern, attached to the geometry as the tower turns.
-        bool onTop = vLocal.y > .245;
-        float radial = abs(dot(normalize(vLocalNormal.xz), normalize(vLocal.xz)));
-        vec2 sideUV = radial > .7 ? vec2(atan(vLocal.x, vLocal.z) * 2.55, vLocal.y) : vec2(length(vLocal.xz), vLocal.y);
-        vec2 uv = onTop ? vLocal.xz * 4.3 : sideUV * 4.3;
-        vec2 cell = floor(uv);
-        float seed = hash(cell);
-        vec2 center = vec2(.2 + .6 * seed, .2 + .6 * hash(cell + 41.0));
-        vec2 delta = fract(uv) - center;
-        float radius = .045 + .24 * seed * seed;
-        float d = length(delta);
-        float edge = 1.0 - smoothstep(.012, .037, abs(d - radius));
-        float inside = 1.0 - smoothstep(radius - .025, radius, d);
-        float shine = 1.0 - smoothstep(.008, .043, length(delta - vec2(-radius * .37, radius * .44)));
-        float visible = step(.43, seed);
-        color = mix(color, color * .70, inside * visible * .19);
-        color += uGlow * visible * (edge * .22 + shine * .60);
-        if (onTop) {
-          float diagonal = dot(vLocal.xz, vec2(.8, .6));
-          float lacquer = exp(-pow((diagonal - .65) / .14, 2.0)) * .20
-                        + exp(-pow((diagonal + .30) / .04, 2.0)) * .15;
-          color += vec3(.85, 1.0, .8) * lacquer;
+  function spawnEatFragments(layer) {
+    onEat();
+    const chunkCount = 28;
+    for (let i = 0; i < chunkCount; i++) {
+      const angle = (i / chunkCount) * TAU + (layer.index % 7) * 0.13;
+      const radius = 1.0 + (i % 4) * 0.45 + Math.random() * 0.18;
+      const local = new THREE.Vector3(
+        Math.sin(angle) * radius,
+        layer.group.position.y + (Math.random() - 0.5) * 0.10,
+        Math.cos(angle) * radius,
+      );
+      const world = towerRoot.localToWorld(local);
+      const bucket = chunkBucket(i % 4 === 0 ? crumbGeo : cookieChunkGeo,
+        i % 5 === 0 ? matChip : (i % 2 ? matCookieAlt : matCookie));
+      const scale = i % 4 === 0 ? 0.8 + Math.random() * 0.8 : 0.75 + Math.random() * 0.65;
+      effects.push({
+        bucket,
+        start: world,
+        kind: 'chunk',
+        lift: 0.36 + Math.random() * 0.48,
+        orbitPhase: Math.random() * TAU,
+        orbitAmp: 0.14 + Math.random() * 0.20,
+        spin: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
+        rotation: new THREE.Euler(Math.random() * TAU, Math.random() * TAU, Math.random() * TAU),
+        duration: 0.34 + Math.random() * 0.15,
+        t: 0,
+        initialScale: scale,
+      });
+    }
+
+    const mouth = getMouthWorldPosition();
+    const impact = new THREE.Vector3(0, layer.group.position.y + 0.10, CONFIG.catZ);
+    spawnJellyBurst(impact, 1.60);
+
+    const ring = new THREE.Mesh(
+      ringGeo,
+      new THREE.MeshBasicMaterial({ color: 0xbaffcf, transparent: true, opacity: 0.9, depthWrite: false }),
+    );
+    ring.position.copy(mouth);
+    ring.rotation.x = Math.PI / 2;
+    scene.add(ring);
+    effects.push({ kind: 'ring', mesh: ring, duration: 0.24, t: 0 });
+  }
+
+  function disposeEffect(fx) {
+    if (fx.kind === 'chunk') return;
+    scene.remove(fx.mesh);
+    if (fx.kind === 'burst' || fx.kind === 'ring') fx.mesh.material.dispose();
+  }
+
+  function updateEatAnimations(dt) {
+    for (const bucket of chunkBuckets.values()) bucket.count = 0;
+    const mouth = effects.length ? getMouthWorldPosition() : null;
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const fx = effects[i];
+      fx.t += dt;
+      const u = THREE.MathUtils.clamp(fx.t / fx.duration, 0, 1);
+      if (fx.kind === 'burst') {
+        const s = fx.initialScale * (0.72 + u * 0.72);
+        fx.mesh.scale.set(s, s, 1);
+        fx.mesh.material.opacity = (1 - u) * 0.88;
+        if (u >= 1) {
+          scene.remove(fx.mesh);
+          fx.mesh.material?.dispose?.();
+          effects.splice(i, 1);
         }
-        gl_FragColor = vec4(color, 1.0);
-        #include <colorspace_fragment>
+        continue;
       }
-    `,
-  });
-}
+      if (fx.kind === 'ring') {
+        fx.mesh.position.copy(mouth);
+        const s = 1 + u * 1.8;
+        fx.mesh.scale.setScalar(s);
+        fx.mesh.material.opacity = (1 - u) * 0.85;
+        fx.mesh.rotation.z += dt * 4.5;
+        if (u >= 1) {
+          scene.remove(fx.mesh);
+          fx.mesh.material?.dispose?.();
+          effects.splice(i, 1);
+        }
+        continue;
+      }
 
-// Physical reflections and absorption, without a luminous outline or painted circles.
-function createCandyJellyMaterial(config, danger = false) {
-  const material = new THREE.MeshPhysicalMaterial({
-    color: danger ? '#f51775' : '#99fa98', metalness: 0, roughness: .012, transmission: .91,
-    thickness: config.platformThickness * .55, ior: 1.22,
-    attenuationColor: danger ? '#760025' : '#31cc4c', attenuationDistance: danger ? .17 : .52,
-    clearcoat: .8, clearcoatRoughness: .035, envMapIntensity: 1.15,
-  });
-  material.userData.platformStyle = 'candy-jelly';
-  material.onBeforeCompile = shader => {
-    shader.vertexShader = `attribute vec3 candyCoord; varying vec3 vCandy;\n${shader.vertexShader}`
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCandy = candyCoord;');
-    shader.fragmentShader = `varying vec3 vCandy;\n${shader.fragmentShader}`;
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
-      #include <color_fragment>
-      float centerDepth = (1.0 - pow(abs(vCandy.x), 3.0)) * (1.0 - pow(abs(vCandy.z), 3.0));
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(${danger ? '.62, .30, .68' : '.64, .94, .63'}), centerDepth * .62);
-    `);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <transmission_fragment>',
-      THREE.ShaderChunk.transmission_fragment.replace('material.thickness = thickness;',
-        'material.thickness = thickness * (.38 + centerDepth * .92);'));
-  };
-  material.customProgramCacheKey = () => `volume-jelly-v2-${danger}`;
-  return material;
-}
+      if (u >= 1) { effects.splice(i, 1); continue; }
+      const eased = 1 - Math.pow(1 - u, 3);
+      chunkTransform.position.copy(fx.start).lerp(mouth, eased);
+      chunkTransform.position.x += Math.cos(fx.orbitPhase + u * 11) * (1 - u) * fx.orbitAmp;
+      chunkTransform.position.z += Math.sin(fx.orbitPhase + u * 11) * (1 - u) * fx.orbitAmp;
+      chunkTransform.position.y += Math.sin(u * Math.PI) * fx.lift;
+      fx.rotation.x += fx.spin.x * dt;
+      fx.rotation.y += fx.spin.y * dt;
+      fx.rotation.z += fx.spin.z * dt;
+      chunkTransform.rotation.copy(fx.rotation);
+      const s = fx.initialScale * Math.max(0.04, 1 - u * 0.95);
+      chunkTransform.scale.setScalar(s);
+      chunkTransform.updateMatrix();
+      fx.bucket.mesh.setMatrixAt(fx.bucket.count++, chunkTransform.matrix);
+    }
+    for (const bucket of chunkBuckets.values()) {
+      bucket.mesh.count = bucket.count;
+      bucket.mesh.visible = bucket.count > 0;
+      if (bucket.count) bucket.mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
 
-// Real sphere geometry, shaded as an air pocket. The jelly shell refracts it
-// through the shared transmission buffer; this is a stylized inclusion model.
-function createAirPocketMaterial(danger = false) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      body: { value: new THREE.Color(danger ? '#c50958' : '#65db6f') },
-      lightColor: { value: new THREE.Color(danger ? '#ff92bc' : '#e5ffc2') },
+  return { spawn: spawnEatFragments, update: updateEatAnimations,
+    clear() {
+      effects.forEach(disposeEffect); effects.length = 0;
+      for (const bucket of chunkBuckets.values()) { bucket.count = 0; bucket.mesh.count = 0; bucket.mesh.visible = false; }
     },
-    vertexShader: `
-      varying vec3 bubbleNormal;
-      varying vec3 bubbleEye;
-      void main() {
-        vec4 p = vec4(position, 1.0);
-        vec3 n = normal;
-        #ifdef USE_INSTANCING
-          p = instanceMatrix * p;
-          n = mat3(instanceMatrix) * n;
-        #endif
-        vec4 mv = modelViewMatrix * p;
-        bubbleNormal = normalize(normalMatrix * n);
-        bubbleEye = -mv.xyz;
-        gl_Position = projectionMatrix * mv;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 body, lightColor;
-      varying vec3 bubbleNormal, bubbleEye;
-      void main() {
-        vec3 n = normalize(bubbleNormal);
-        float facing = max(0.0, dot(n, normalize(bubbleEye)));
-        float rim = pow(1.0 - facing, 2.2);
-        float upperReflection = pow(max(0.0, dot(n, normalize(vec3(-.45,.65,.75)))), 42.0);
-        float lowerReflection = pow(max(0.0, dot(n, normalize(vec3(.48,-.68,.5)))), 65.0);
-        vec3 color = body * (.65 + .35 * n.y);
-        color = mix(color, lightColor, rim * .8);
-        color += vec3(1.0) * upperReflection * 2.5 + lightColor * lowerReflection * 1.2;
-        gl_FragColor = vec4(color, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }
-    `,
-  });
+    get count() { return effects.length; },
+    get chunkDrawCalls() { return [...chunkBuckets.values()].filter(bucket => bucket.mesh.visible).length; },
+  };
 }
 
+// Canvas equivalent of assets/jelly-burst.svg, so native clients need no SVG decoder.
+function createBurstTexture(THREE, createCanvas) {
+  const canvas = createCanvas(); canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 84);
+  g.addColorStop(0, '#effff3e6'); g.addColorStop(.5, '#6dffa08c'); g.addColorStop(1, '#55e98900');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+  for (const [x, y, w, h, r, degrees] of [[48,76,34,31,8,-24],[164,65,37,32,9,26],
+    [49,151,40,34,9,22],[164,156,39,34,9,-24],[108,39,36,34,9,12],[108,184,36,34,9,-10]]) {
+    ctx.save(); ctx.translate(x + w/2, y + h/2); ctx.rotate(degrees * Math.PI / 180);
+    ctx.fillStyle = '#6bfa98'; ctx.strokeStyle = '#e9fff0'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.roundRect(-w/2, -h/2, w, h, r); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.fillStyle = '#b9ffd0';
+  for (const [x,y,r] of [[38,126,10],[218,128,11],[93,92,8],[157,116,7],[101,166,6],[151,175,8]]) {
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = '#fffad0';
+  for (const [x,y,r] of [[128,118,22],[208,121,13],[56,126,13]]) {
+    ctx.beginPath();
+    for (let i=0;i<8;i++) { const a=i*Math.PI/4-Math.PI/2, d=i%2?r*.32:r;
+      if (!i) ctx.moveTo(x+Math.cos(a)*d,y+Math.sin(a)*d); else ctx.lineTo(x+Math.cos(a)*d,y+Math.sin(a)*d); }
+    ctx.closePath(); ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 
+return { createEatEffects };
+})();
 
+const __mod_game_config = (() => {
+const { JELLY_CONTACT_TIME } = __mod_jelly_motion;
+
+const GAME_CONFIG = Object.freeze({
+  initialJumps: 5,
+  maxJumps: 10,
+  layerGap: 2.20,
+  platformRadius: 2.55,
+  platformThickness: 0.56,
+  pillarRadius: 1.02,
+  catRadius: 0.31,
+  catRadiusAtMax: 0.37,
+  catZ: 2.05,
+  maxPixelRatio: 1.5,
+  transmissionResolutionScale: .5,
+  gravity: -10.2,
+  jumpVelocity: 5.25,
+  landingPause: JELLY_CONTACT_TIME,
+  dragTurnsPerScreen: 240 * Math.PI / 180,
+  aheadLayers: 8,
+  keepBehind: 3,
+  breakthroughCombo: 5,
+  smashBounceVelocity: 4.15,
+});
+
+return { GAME_CONFIG };
+})();
+
+const __mod_platform_materials = (() => {
+const { createClassicMaterial } = __mod_classic_material;
+const { createCandyJellyMaterial } = __mod_candy_jelly_material;
+
+const THREE = globalThis.__THREE__;
 const STORAGE_KEY = 'cat-tower.platform-material.v1';
+const DEFAULT_PLATFORM_PRESET = 'jelly';
 
 // One entry describes both safe and poison surfaces. Gameplay never reads this
 // registry: the same angular boundaries and collision heights apply to all skins.
@@ -392,7 +647,7 @@ const PLATFORM_PRESETS = Object.freeze([
     } },
 ]);
 
-function readPlatformPreset(fallback = 'classic') {
+function readPlatformPreset(fallback = DEFAULT_PLATFORM_PRESET) {
   try {
     const id = localStorage.getItem(STORAGE_KEY);
     return PLATFORM_PRESETS.some(p => p.id === id) ? id : fallback;
@@ -436,8 +691,87 @@ function createPlatformMaterials(config) {
   };
 }
 
+return { readPlatformPreset, savePlatformPreset, createPlatformMaterials, DEFAULT_PLATFORM_PRESET, PLATFORM_PRESETS };
+})();
 
+const __mod_material_switcher = (() => {
+const { PLATFORM_PRESETS, savePlatformPreset } = __mod_platform_materials;
 
+function mountMaterialSwitcher(art, root, parent) {
+  const panel = document.createElement('details');
+  panel.className = 'material-switcher';
+  const summary = document.createElement('summary');
+  panel.appendChild(summary);
+  const options = document.createElement('div');
+  options.className = 'material-menu';
+  options.setAttribute('role', 'group');
+  options.setAttribute('aria-label', '平台材质');
+  panel.appendChild(options);
+  function refresh() {
+    summary.textContent = `材质 · ${art.platformMaterials.preset.label}`;
+    for (const button of options.querySelectorAll('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.preset === art.platformMaterials.id));
+    }
+  }
+  const requested = new URLSearchParams(location.search).get('material');
+  if (PLATFORM_PRESETS.some(p => p.id === requested)) art.platformMaterials.select(requested, root);
+  for (const preset of PLATFORM_PRESETS) {
+    const button = document.createElement('button');
+    button.dataset.preset = preset.id;
+    button.textContent = preset.label;
+    button.addEventListener('click', () => {
+      art.platformMaterials.select(preset.id, root);
+      const saved = savePlatformPreset(preset.id);
+      const url = new URL(location.href);
+      url.searchParams.set('material', preset.id);
+      history.replaceState(null, '', url);
+      refresh();
+      summary.title = saved ? '已记住选择' : '本次选择已保存在页面地址中';
+      panel.open = false;
+    });
+    options.appendChild(button);
+  }
+  const link = document.createElement('a');
+  link.href = './material-lab.html';
+  link.textContent = '打开材质小样 ↗';
+  options.appendChild(link);
+  refresh();
+  parent.appendChild(panel);
+}
+
+return { mountMaterialSwitcher };
+})();
+
+const __mod_world_background = (() => {
+// Use the same image inside WebGL so transmission can actually sample it.
+// Match CSS background-size: cover without stretching at different aspect ratios.
+const { GAME_ASSETS } = __mod_game_assets;
+
+function createWorldBackground(scene, loadTexture) {
+  const texture = loadTexture(GAME_ASSETS.world);
+  scene.background = texture;
+  let lastAspect = 0;
+  return function resizeBackground(aspect) {
+    const image = texture.image;
+    if (!image?.width || lastAspect === aspect) return;
+    lastAspect = aspect;
+    const ratio = (image.width / image.height) / aspect;
+    texture.repeat.set(Math.min(1, 1 / ratio), Math.min(1, ratio));
+    texture.offset.set((1 - texture.repeat.x) / 2, (1 - texture.repeat.y) / 2);
+    texture.updateMatrix();
+  };
+}
+
+return { createWorldBackground };
+})();
+
+const __mod_visuals = (() => {
+const { platformSpans, SeededRandom } = __mod_logic;
+const { createPlatformMaterials } = __mod_platform_materials;
+const { createAirPocketMaterial } = __mod_candy_jelly_material;
+
+const THREE = globalThis.__THREE__;
+const TAU = Math.PI * 2;
 
 function canvasTexture(width, height, paint) {
   const canvas = document.createElement('canvas');
@@ -521,6 +855,28 @@ function createArt(renderer, scene, config, loadTexture) {
   const padGeometry = new THREE.ExtrudeGeometry(padShape, { depth: .025, bevelEnabled: true,
     bevelThickness: .03, bevelSize: .025, bevelSegments: 4, curveSegments: 16 });
   padGeometry.rotateX(-Math.PI / 2);
+  // The five paw pieces share a material and never move independently. Merge
+  // them once so every safe segment submits one draw call instead of two.
+  const pawParts = [[padGeometry, 0, .027, .105, 1, 1, 1],
+    ...[[-.23, .04, -.10, .08, .057, .1], [-.085, .05, -.22, .087, .06, .105],
+      [.085, .05, -.22, .087, .06, .105], [.23, .04, -.10, .08, .057, .1]]
+      .map(shape => [pawSphere, ...shape])];
+  const pawReliefGeometry = new THREE.BufferGeometry();
+  const pawAttributes = { position: [], normal: [], uv: [] };
+  for (const [source, x, y, z, sx, sy, sz] of pawParts) {
+    dummy.position.set(x, y, z); dummy.scale.set(sx, sy, sz); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
+    const piece = (source.index ? source.toNonIndexed() : source.clone()).applyMatrix4(dummy.matrix);
+    for (const name of Object.keys(pawAttributes)) pawAttributes[name].push(piece.getAttribute(name).array);
+    piece.dispose();
+  }
+  for (const [name, arrays] of Object.entries(pawAttributes)) {
+    const merged = new Float32Array(arrays.reduce((count, array) => count + array.length, 0));
+    let offset = 0;
+    for (const array of arrays) { merged.set(array, offset); offset += array.length; }
+    pawReliefGeometry.setAttribute(name, new THREE.BufferAttribute(merged, name === 'uv' ? 2 : 3));
+  }
+  padGeometry.dispose(); pawSphere.dispose();
+  pawReliefGeometry.computeBoundingSphere();
   const skullShape = new THREE.Shape();
   skullShape.moveTo(-.20, -.08);
   skullShape.bezierCurveTo(-.38, .04, -.29, .27, 0, .27);
@@ -679,22 +1035,12 @@ function createArt(renderer, scene, config, loadTexture) {
           part.add(relief);
         }
         if (!danger) {
-          const relief = new THREE.Group();
+          const relief = new THREE.Mesh(pawReliefGeometry, pawReliefMaterial);
           relief.userData.platformDecoration = 'candyDetails';
           relief.position.copy(mark.position);
           relief.rotation.y = a;
           relief.scale.setScalar(Math.min(1.2, span.width / .55));
-          const pad = new THREE.Mesh(padGeometry, pawReliefMaterial);
-          pad.position.set(0, .027, .105); relief.add(pad);
-          const pads = new THREE.InstancedMesh(pawSphere, pawReliefMaterial, 4);
-          const shapes = [[-.23, .04, -.10, .08, .057, .1], [-.085, .05, -.22, .087, .06, .105],
-            [.085, .05, -.22, .087, .06, .105], [.23, .04, -.10, .08, .057, .1]];
-          shapes.forEach(([x, y, z, sx, sy, sz], i) => {
-            dummy.position.set(x, y, z); dummy.rotation.set(0, 0, 0);
-            dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); pads.setMatrixAt(i, dummy.matrix);
-          });
-          pads.userData.instanced = true;
-          relief.add(pads); part.add(relief);
+          part.add(relief);
         }
         if (span.width > .5) {
           const star = new THREE.Sprite(glintMaterial);
@@ -805,65 +1151,30 @@ function disposePlatform(group) {
   group.removeFromParent();
 }
 
-// Use the same image inside WebGL so transmission can actually sample it.
-// Match CSS background-size: cover without stretching at different aspect ratios.
-function createWorldBackground(scene, loadTexture) {
-  const texture = loadTexture('./assets/world-hd.png');
-  scene.background = texture;
-  let lastAspect = 0;
-  return function resizeBackground(aspect) {
-    const image = texture.image;
-    if (!image?.width || lastAspect === aspect) return;
-    lastAspect = aspect;
-    const ratio = (image.width / image.height) / aspect;
-    texture.repeat.set(Math.min(1, 1 / ratio), Math.min(1, ratio));
-    texture.offset.set((1 - texture.repeat.x) / 2, (1 - texture.repeat.y) / 2);
-    texture.updateMatrix();
-  };
-}
-
-
-function mountMaterialSwitcher(art, root, parent) {
-  const panel = document.createElement('details');
-  panel.className = 'material-switcher';
-  const summary = document.createElement('summary');
-  panel.appendChild(summary);
-  const options = document.createElement('div');
-  options.className = 'material-menu';
-  options.setAttribute('role', 'group');
-  options.setAttribute('aria-label', '平台材质');
-  panel.appendChild(options);
-  function refresh() {
-    summary.textContent = `材质 · ${art.platformMaterials.preset.label}`;
-    for (const button of options.querySelectorAll('button')) {
-      button.setAttribute('aria-pressed', String(button.dataset.preset === art.platformMaterials.id));
+// The generated layers remain available for gameplay, but only camera-near
+// meshes and the next preview layers enter Three.js's render traversal.
+function setVisibleTowerLayers(platforms, columns, focusY, reach) {
+  for (const collection of [platforms, columns]) {
+    for (const item of collection.values()) {
+      const group = item.group || item;
+      group.visible = Math.abs(group.position.y - focusY) <= reach;
     }
   }
-  const requested = new URLSearchParams(location.search).get('material');
-  if (PLATFORM_PRESETS.some(p => p.id === requested)) art.platformMaterials.select(requested, root);
-  for (const preset of PLATFORM_PRESETS) {
-    const button = document.createElement('button');
-    button.dataset.preset = preset.id;
-    button.textContent = preset.label;
-    button.addEventListener('click', () => {
-      art.platformMaterials.select(preset.id, root);
-      const saved = savePlatformPreset(preset.id);
-      const url = new URL(location.href);
-      url.searchParams.set('material', preset.id);
-      history.replaceState(null, '', url);
-      refresh();
-      summary.title = saved ? '已记住选择' : '本次选择已保存在页面地址中';
-      panel.open = false;
-    });
-    options.appendChild(button);
-  }
-  const link = document.createElement('a');
-  link.href = './material-lab.html';
-  link.textContent = '打开材质小样 ↗';
-  options.appendChild(link);
-  refresh();
-  parent.appendChild(panel);
 }
+
+return { createArt, disposePlatform, setVisibleTowerLayers };
+})();
+
+const { createEatEffects } = __mod_eat_effects;
+const { GAME_CONFIG: CONFIG } = __mod_game_config;
+const THREE = globalThis.__THREE__;
+if (!THREE) throw new Error('Three.js 未加载');
+const { GameRules, LayerGenerator, angleInArc, normalizeAngle, platformSpans } = __mod_logic;
+const { createArt, disposePlatform, setVisibleTowerLayers } = __mod_visuals;
+const { createWorldBackground } = __mod_world_background;
+const { mountMaterialSwitcher } = __mod_material_switcher;
+const { jellyCompression } = __mod_jelly_motion;
+const { CAT_SOURCES } = __mod_game_assets;
 
 const gameEl = document.getElementById('game');
 const frameEl = document.getElementById('phoneFrame');
@@ -886,25 +1197,6 @@ const hud = {
   restartBtn: document.getElementById('restartBtn'),
 };
 
-const CONFIG = Object.freeze({
-  initialJumps: 5,
-  maxJumps: 10,
-  layerGap: 2.20,
-  platformRadius: 2.55,
-  platformThickness: 0.56,
-  pillarRadius: 1.02,
-  catRadius: 0.31,
-  catRadiusAtMax: 0.37,
-  catZ: 2.05,
-  gravity: -10.2,
-  jumpVelocity: 5.25,
-  landingPause: JELLY_CONTACT_TIME,
-  dragTurnsPerScreen: 240 * Math.PI / 180,
-  aheadLayers: 8,
-  keepBehind: 3,
-  breakthroughCombo: 5,
-  smashBounceVelocity: 4.15,
-});
 
 const scene = new THREE.Scene();
 scene.background = null;
@@ -915,7 +1207,7 @@ const initialH = Math.max(gameEl.clientHeight, 568);
 const camera = new THREE.OrthographicCamera(-3.25, 3.25, 5.78, -5.78, 0.1, 100);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
 renderer.setSize(initialW, initialH, false);
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -955,14 +1247,10 @@ function loadArtTexture(url) {
   return tex;
 }
 
-const jellyBurstTexture = loadArtTexture('./assets/jelly-burst.svg');
 const art = createArt(renderer, scene, CONFIG, loadArtTexture);
 const resizeBackground = createWorldBackground(scene, loadArtTexture);
 mountMaterialSwitcher(art, towerRoot, frameEl);
-renderer.transmissionResolutionScale = .75;
-const matCookie = art.materials.crumb;
-const matCookieAlt = art.materials.bubble;
-const matChip = art.materials.ivory;
+renderer.transmissionResolutionScale = CONFIG.transmissionResolutionScale;
 const pillarRoot = new THREE.Group();
 scene.add(pillarRoot);
 const pillarModules = new Map();
@@ -989,14 +1277,12 @@ function clearPillarModules() {
   pillarModules.clear();
 }
 
-const catSources = {
-  idle: './assets/cat-idle-hd.png',
-  fall: './assets/cat-fall-hd.png',
-  eat: './assets/cat-eat-hd.png',
-  squash: './assets/cat-idle-hd.png',
-  fail: './assets/cat-fail-hd.png',
-};
-const catTextures = Object.fromEntries(Object.entries(catSources).map(([key, url]) => [key, loadArtTexture(url)]));
+const catSources = CAT_SOURCES;
+const catTextureCache = new Map();
+const catTextures = Object.fromEntries(Object.entries(catSources).map(([key, url]) => {
+  if (!catTextureCache.has(url)) catTextureCache.set(url, loadArtTexture(url));
+  return [key, catTextureCache.get(url)];
+}));
 function createCat() {
   const root = new THREE.Group();
   root.position.set(0, 0, CONFIG.catZ);
@@ -1027,10 +1313,9 @@ const cat = createCat();
 const rules = new GameRules({ initialJumps: CONFIG.initialJumps, maxJumps: CONFIG.maxJumps });
 let generator = new LayerGenerator((Date.now() ^ 0xA11CE) >>> 0);
 const layers = new Map();
-const effects = [];
-
-const cookieChunkGeo = new THREE.IcosahedronGeometry(.15, 0);
-const crumbGeo = new THREE.SphereGeometry(.045, 8, 6);
+const eatEffects = createEatEffects(THREE, scene, towerRoot, CONFIG, art.materials,
+  getMouthWorldPosition, () => document.createElement('canvas'),
+  () => { cat.eatTimer = Math.max(cat.eatTimer, .26); });
 
 function makeLayer(index) {
   const data = generator.create(Math.max(0, index), rules.jumps <= 2);
@@ -1195,72 +1480,7 @@ function cleanupLayersAbove(landedIndex) {
   }
 }
 
-function spawnJellyBurst(position, scale = 1.55) {
-  const mat = new THREE.SpriteMaterial({
-    map: jellyBurstTexture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    opacity: 0.88,
-  });
-  const sprite = new THREE.Sprite(mat);
-  sprite.position.copy(position);
-  sprite.scale.set(scale, scale, 1);
-  sprite.renderOrder = 15;
-  scene.add(sprite);
-  effects.push({ kind: 'burst', mesh: sprite, duration: 0.34, t: 0, initialScale: scale });
-}
-
-function spawnEatFragments(layer) {
-  cat.eatTimer = Math.max(cat.eatTimer, 0.26);
-  const chunkCount = 28;
-  for (let i = 0; i < chunkCount; i++) {
-    const angle = (i / chunkCount) * TAU + (layer.index % 7) * 0.13;
-    const radius = 1.0 + (i % 4) * 0.45 + Math.random() * 0.18;
-    const local = new THREE.Vector3(
-      Math.sin(angle) * radius,
-      layer.group.position.y + (Math.random() - 0.5) * 0.10,
-      Math.cos(angle) * radius,
-    );
-    const world = towerRoot.localToWorld(local.clone());
-    const mesh = new THREE.Mesh(
-      i % 4 === 0 ? crumbGeo : cookieChunkGeo,
-      i % 5 === 0 ? matChip : (i % 2 ? matCookieAlt : matCookie),
-    );
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    const scale = i % 4 === 0 ? 0.8 + Math.random() * 0.8 : 0.75 + Math.random() * 0.65;
-    mesh.scale.setScalar(scale);
-    mesh.position.copy(world);
-    mesh.rotation.set(Math.random() * TAU, Math.random() * TAU, Math.random() * TAU);
-    scene.add(mesh);
-    effects.push({
-      mesh,
-      start: world.clone(),
-      kind: 'chunk',
-      lift: 0.36 + Math.random() * 0.48,
-      orbitPhase: Math.random() * TAU,
-      orbitAmp: 0.14 + Math.random() * 0.20,
-      spin: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
-      duration: 0.34 + Math.random() * 0.15,
-      t: 0,
-      initialScale: mesh.scale.x,
-    });
-  }
-
-  const mouth = getMouthWorldPosition();
-  const impact = new THREE.Vector3(0, layer.group.position.y + 0.10, CONFIG.catZ);
-  spawnJellyBurst(impact, 1.60);
-
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.34, 0.03, 8, 32),
-    new THREE.MeshBasicMaterial({ color: 0xbaffcf, transparent: true, opacity: 0.9, depthWrite: false }),
-  );
-  ring.position.copy(mouth);
-  ring.rotation.x = Math.PI / 2;
-  scene.add(ring);
-  effects.push({ kind: 'ring', mesh: ring, duration: 0.24, t: 0 });
-}
+function spawnEatFragments(layer) { eatEffects.spawn(layer); }
 
 function beginEat(layer) {
   if (layer.eaten) return;
@@ -1377,8 +1597,7 @@ function resetGame() {
   generator = new LayerGenerator((Date.now() ^ ((Math.random() * 0xffffffff) >>> 0)) >>> 0);
   clearLayers();
   clearPillarModules();
-  for (const fx of effects) disposeEffect(fx);
-  effects.length = 0;
+  eatEffects.clear();
   frameEl.querySelectorAll('.plus-one').forEach(el => el.remove());
   hud.combo.classList.remove('show');
   towerRoot.rotation.y = 0;
@@ -1407,69 +1626,10 @@ function resetGame() {
   cameraFocusY = cat.root.position.y - 2.15;
   hud.gameOver.classList.add('hidden');
   updateHUD();
+  scheduleFrame(true);
 }
 
 hud.restartBtn.addEventListener('click', resetGame);
-
-function disposeEffect(fx) {
-  scene.remove(fx.mesh);
-  if (fx.kind === 'burst' || fx.kind === 'ring') fx.mesh.material.dispose();
-  if (fx.kind === 'ring') fx.mesh.geometry.dispose();
-}
-
-function updateEatAnimations(dt) {
-  const mouth = getMouthWorldPosition();
-  for (let i = effects.length - 1; i >= 0; i--) {
-    const fx = effects[i];
-    fx.t += dt;
-    const u = THREE.MathUtils.clamp(fx.t / fx.duration, 0, 1);
-    if (fx.kind === 'burst') {
-      const s = fx.initialScale * (0.72 + u * 0.72);
-      fx.mesh.scale.set(s, s, 1);
-      fx.mesh.material.opacity = (1 - u) * 0.88;
-      if (u >= 1) {
-        scene.remove(fx.mesh);
-        fx.mesh.material?.dispose?.();
-        effects.splice(i, 1);
-      }
-      continue;
-    }
-    if (fx.kind === 'ring') {
-      fx.mesh.position.copy(mouth);
-      const s = 1 + u * 1.8;
-      fx.mesh.scale.setScalar(s);
-      fx.mesh.material.opacity = (1 - u) * 0.85;
-      fx.mesh.rotation.z += dt * 4.5;
-      if (u >= 1) {
-        scene.remove(fx.mesh);
-        fx.mesh.geometry?.dispose?.();
-        fx.mesh.material?.dispose?.();
-        effects.splice(i, 1);
-      }
-      continue;
-    }
-
-    const eased = 1 - Math.pow(1 - u, 3);
-    const p = fx.start.clone().lerp(mouth, eased);
-    const tangent = new THREE.Vector3(
-      Math.cos(fx.orbitPhase + u * 11),
-      0,
-      Math.sin(fx.orbitPhase + u * 11),
-    ).multiplyScalar((1 - u) * fx.orbitAmp);
-    p.add(tangent);
-    p.y += Math.sin(u * Math.PI) * fx.lift;
-    fx.mesh.position.copy(p);
-    fx.mesh.rotation.x += fx.spin.x * dt;
-    fx.mesh.rotation.y += fx.spin.y * dt;
-    fx.mesh.rotation.z += fx.spin.z * dt;
-    const s = fx.initialScale * Math.max(0.04, 1 - u * 0.95);
-    fx.mesh.scale.setScalar(s);
-    if (u >= 1) {
-      scene.remove(fx.mesh);
-      effects.splice(i, 1);
-    }
-  }
-}
 
 function collisionStep(prevY, currentY) {
   if (!rules.alive || state === 'landed' || vy >= 0) return;
@@ -1478,11 +1638,9 @@ function collisionStep(prevY, currentY) {
   const currBottomY = currentY - radius;
 
   // Check layers from top to bottom; one fast frame can cross more than one layer.
-  const candidates = [...layers.values()]
-    .filter((l) => !l.eaten)
-    .sort((a, b) => b.group.position.y - a.group.position.y);
-
-  for (const layer of candidates) {
+  // Layers are inserted in ascending index order and new layers append below.
+  for (const layer of layers.values()) {
+    if (layer.eaten) continue;
     const top = layerTopY(layer);
     if (!(prevBottomY >= top && currBottomY <= top)) continue;
 
@@ -1570,7 +1728,10 @@ function updateCat(dt) {
     cat.visual.position.y += Math.sin(performance.now() * .0025) * .055;
   }
   // The ground shadow stays on the next platform while the cat rises above it.
-  const ground = [...layers.values()].filter(l => !l.eaten && layerTopY(l) <= cat.root.position.y).sort((a,b) => a.index-b.index)[0];
+  let ground = null;
+  for (const layer of layers.values()) {
+    if (!layer.eaten && layerTopY(layer) <= cat.root.position.y && (!ground || layer.index < ground.index)) ground = layer;
+  }
   cat.shadow.visible = !!ground && platformStatus(ground) !== 'gap';
   if (ground) {
     cat.shadow.position.y = layerTopY(ground) - cat.root.position.y + .014;
@@ -1612,6 +1773,8 @@ function updateCamera(dt) {
   cameraFocusY = Math.min(cameraFocusY, targetY + .75);
   camera.position.set(0, cameraFocusY + 8.2, 20);
   camera.lookAt(0, cameraFocusY, 0);
+  setVisibleTowerLayers(layers, pillarModules, cameraFocusY,
+    camera.top * 1.1 + CONFIG.layerGap + CONFIG.platformThickness);
   art.animate(performance.now() / 1000, cameraFocusY);
   resizeBackground(gameEl.clientWidth / Math.max(1, gameEl.clientHeight));
 }
@@ -1646,6 +1809,16 @@ renderer.domElement.addEventListener('pointermove', pointerMove);
 renderer.domElement.addEventListener('pointerup', pointerUp);
 renderer.domElement.addEventListener('pointercancel', pointerUp);
 
+let frameHandle = null;
+let frameLoopReady = false;
+let renderedFrames = 0;
+let last = performance.now();
+let nativeActive = globalThis.CatAndroidLifecycle?.active ?? true;
+function scheduleFrame(resetTime = false) {
+  if (!frameLoopReady || document.hidden || !nativeActive || frameHandle !== null) return;
+  if (resetTime) last = performance.now();
+  frameHandle = requestAnimationFrame(frame);
+}
 function resize() {
   const w = Math.max(gameEl.clientWidth, 1);
   const h = Math.max(gameEl.clientHeight, 1);
@@ -1654,23 +1827,43 @@ function resize() {
   camera.top = viewWidth * h / w / 2; camera.bottom = -camera.top;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
+  scheduleFrame(true);
 }
 addEventListener('resize', resize);
 new ResizeObserver(resize).observe(frameEl);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (frameHandle !== null) cancelAnimationFrame(frameHandle);
+    frameHandle = null;
+  } else scheduleFrame(true);
+});
+globalThis.CatAndroidLifecycle = {
+  active: nativeActive,
+  setActive(active) {
+    nativeActive = !!active;
+    this.active = nativeActive;
+    if (!nativeActive) {
+      dragging = false;
+      if (frameHandle !== null) cancelAnimationFrame(frameHandle);
+      frameHandle = null;
+    } else scheduleFrame(true);
+  },
+};
 
-let last = performance.now();
 function frame(now) {
+  frameHandle = null;
   const dt = Math.min((now - last) / 1000, 1 / 30);
   last = now;
   ensureLayers();
   ensurePillarModules();
   updateJellyMotion(dt);
   updateCat(dt);
-  updateEatAnimations(dt);
+  eatEffects.update(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
-  requestAnimationFrame(frame);
+  renderedFrames++;
+  if (!deadShown || eatEffects.count > 0) scheduleFrame();
 }
 
 resize();
@@ -1691,10 +1884,14 @@ if (debugMode) {
       if (span) towerRoot.rotation.y = -(span.start + span.width / 2);
       return !!span;
     },
-    snapshot() { return { state, depth: rules.depth, jumps: rules.jumps, objects: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries }; },
+    snapshot() { return { state, depth: rules.depth, jumps: rules.jumps, frames: renderedFrames,
+      objects: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries,
+      effects: eatEffects.count, effectDrawCalls: eatEffects.chunkDrawCalls }; },
   };
 }
 await Promise.all(artLoads);
 loadingEl.classList.add('hidden');
-requestAnimationFrame(frame);
+frameLoopReady = true;
+scheduleFrame(true);
 

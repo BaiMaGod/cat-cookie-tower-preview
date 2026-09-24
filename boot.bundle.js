@@ -1,5 +1,9 @@
-/* cat-cookie-tower v3.1.0 production bootstrap | no sourcemap */
+/* cat-cookie-tower V1.0.0 production bootstrap | no sourcemap */
 const loadingEl = document.getElementById('loading');
+globalThis.CatAndroidLifecycle ||= {
+  active: true,
+  setActive(active) { this.active = !!active; },
+};
 
 const sources = [
   { src: './vendor/three.module.js', timeout: 6000 },
@@ -44,7 +48,7 @@ function showBootError(err) {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=310');
+  await import('./game.bundle.js?v=c04026688073');
 } catch (err) {
   console.error(err);
   showBootError(err);
