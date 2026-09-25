@@ -277,7 +277,7 @@ body {
   filter: drop-shadow(0 10px 10px #bc7e7173);
   animation: home-float 2.6s ease-in-out infinite alternate;
 }
-.home-title { position: absolute; z-index: 4; top: 3%; left: -1%; width: 102%; margin: 0; pointer-events: none; }
+.home-title { position: absolute; z-index: 4; top: 5.5%; left: -1%; width: 102%; margin: 0; pointer-events: none; }
 .home-title img { display: block; width: 100%; height: auto; filter: drop-shadow(0 7px 7px #a943543d); }
 .home-settings-btn, .home-start-btn {
   position: absolute; z-index: 5; display: block; border: 0; padding: 0;
@@ -286,22 +286,10 @@ body {
 }
 .home-settings-btn img, .home-start-btn img { display: block; width: 100%; height: auto; }
 .home-settings-btn { top: 0.5%; right: 0.5%; width: 19%; min-width: 44px; }
-.home-start-btn { left: 11%; bottom: 1.5%; width: 78%; animation: home-start-pulse 2.2s ease-in-out infinite; }
+.home-start-btn { left: 11%; bottom: 5%; width: 78%; animation: home-start-pulse 2.2s ease-in-out infinite; }
 .home-settings-btn:hover, .home-start-btn:hover { filter: brightness(1.06); transform: translateY(-2px) scale(1.025); }
 .home-settings-btn:active, .home-start-btn:active { transform: translateY(2px) scale(.98); }
 .home-settings-btn:focus-visible, .home-start-btn:focus-visible { outline: 3px solid #7b3e85; outline-offset: 1px; border-radius: 20px; }
-.home-guide {
-  position: absolute; z-index: 4; top: 60.5%; left: 18%; width: 64%;
-  padding: 1.5% 3.5% 2%; border: 2px solid #fff8dd; border-radius: 36px;
-  background: linear-gradient(180deg, #fffaf1f5, #ffe5cdec);
-  box-shadow: 0 5px 0 #eab993, 0 12px 25px #994e6c55, inset 0 0 0 2px #fffaf48c;
-  text-align: center; color: #98491f; text-shadow: 0 1px 0 #fff9ed;
-}
-.home-guide-gesture { display: flex; justify-content: center; align-items: center; gap: 8%; height: clamp(21px, 8cqw, 38px); line-height: 1; color: #e87653; font-size: clamp(21px, 8cqw, 36px); }
-.home-guide-hand { color: #fffaf1; -webkit-text-stroke: 1.5px #b4512c; transform: translateY(2px); }
-.home-guide strong, .home-guide > span { display: block; white-space: nowrap; }
-.home-guide strong { font-size: clamp(10px, 3.4cqw, 17px); letter-spacing: .04em; }
-.home-guide > span { margin-top: 2px; font-size: clamp(9px, 2.8cqw, 13px); font-weight: 750; }
 .home-settings-panel { z-index: 45; background: #3a44648a; backdrop-filter: blur(7px); }
 .home-settings-card {
   position: relative; width: min(100%, 340px); padding: 29px 23px 23px;
@@ -380,33 +368,4 @@ body {
   .results { margin: 8px 0 5px; padding: 8px 0; }
   .results strong { font-size: 17px; }
   #restartBtn { flex-basis: 46px; min-height: 46px; font-size: 17px; margin-top: 5px; }
-}
-
-
-/* Preview-only fallback for three source PNGs larger than the connector binary read limit. */
-.preview-title {
-  left: 7%; width: 86%; top: 4%; text-align: center; color: #fff9df;
-  text-shadow: 0 4px 0 #cf5878, 0 7px 14px #753a665c;
-}
-.preview-title-main {
-  display: block; font-size: clamp(38px, 13cqw, 68px); line-height: .98;
-  font-weight: 1000; letter-spacing: .02em;
-  -webkit-text-stroke: 2px #b44770;
-}
-.preview-title-sub {
-  display: inline-block; margin-top: 7px; padding: 5px 14px 6px;
-  border: 2px solid #fff8df; border-radius: 999px;
-  background: #ef7aa6e8; color: #fffdf4;
-  font-size: clamp(11px, 3.6cqw, 17px); font-weight: 900; letter-spacing: .06em;
-  text-shadow: 0 2px 0 #a54b6a;
-}
-.preview-start {
-  min-height: clamp(68px, 19cqw, 98px); border: 4px solid #fff8d8;
-  border-radius: 999px; background: linear-gradient(180deg,#ffe76a 0%,#ffc739 56%,#ff9e2e 100%);
-  box-shadow: 0 8px 0 #d67a2c, 0 13px 24px #8f4d5b66, inset 0 4px 0 #fff8b7;
-}
-.home-start-copy {
-  display: block; color: #8b3d22; font-size: clamp(28px, 9cqw, 48px);
-  line-height: 1; font-weight: 1000; letter-spacing: .08em;
-  text-shadow: 0 2px 0 #fff6b0;
 }

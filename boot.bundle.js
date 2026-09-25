@@ -1,4 +1,4 @@
-/* cat-cookie-tower V1.0.0 production bootstrap | source 29b41169 | no sourcemap */
+/* cat-cookie-tower preview | source 39a4a279 | web 213727fc33e6 */
 const loadingEl = document.getElementById('loading');
 globalThis.CatAndroidLifecycle ||= {
   active: true,
@@ -48,7 +48,7 @@ function showBootError(err) {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=48b9629862b6');
+  await import('./game.bundle.js?v=213727fc33e6');
 } catch (err) {
   console.error(err);
   showBootError(err);
