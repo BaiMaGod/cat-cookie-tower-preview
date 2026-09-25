@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#8ddcff" />
   <title>猫猫果冻塔</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./app.css?v=c04026688073" />
+  <link rel="stylesheet" href="./app.css?v=48b9629862b6" />
 </head>
 <body>
-  <main id="phoneFrame" class="phone-frame">
+  <main id="phoneFrame" class="phone-frame at-home">
     <div class="world-backdrop" aria-hidden="true"></div>
     <div id="game" aria-label="左右拖动旋转果冻塔"></div>
 
@@ -54,7 +54,44 @@
           <div><span>得分</span><strong id="finalScore">0</strong></div>
         </div>
         <button id="restartBtn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 7a8 8 0 1 0 1 9M19 3v5h-5" /></svg><span>再来一次</span></button>
+        <button id="homeBtn" class="result-home-btn">返回首页</button>
         </div>
+      </div>
+    </div>
+
+    <section id="homeScreen" class="home-screen" aria-label="猫猫果冻塔首页">
+      <div class="home-scenery" aria-hidden="true">
+        <div class="home-pillar"></div>
+        <img class="home-jelly jelly-1" src="./assets/jelly-safe.webp" alt="" />
+        <img class="home-jelly jelly-2" src="./assets/jelly-safe.webp" alt="" />
+        <img class="home-jelly jelly-3" src="./assets/jelly-safe.webp" alt="" />
+        <img class="home-jelly jelly-4" src="./assets/home-jelly-danger.png" alt="" />
+        <img class="home-jelly jelly-5" src="./assets/jelly-safe.webp" alt="" />
+        <img class="home-jelly jelly-6" src="./assets/jelly-safe.webp" alt="" />
+        <img class="home-jelly jelly-7" src="./assets/home-jelly-danger.png" alt="" />
+        <img class="home-jelly jelly-8" src="./assets/jelly-safe.webp" alt="" />
+        <img class="home-cat" src="./assets/cat-fall-game.png" alt="" />
+      </div>
+      <h1 class="home-title preview-title" aria-label="猫猫果冻塔，越掉越甜，越深越惊喜"><span class="preview-title-main">猫猫果冻塔</span><small class="preview-title-sub">越掉越甜 · 越深越惊喜</small></h1>
+      <button id="settingsBtn" class="home-settings-btn" type="button" aria-label="打开设置">
+        <img src="./assets/home-settings.png" alt="" />
+      </button>
+      <div class="home-guide" aria-label="左右滑动旋转果冻塔，寻找缺口继续下落">
+        <div class="home-guide-gesture" aria-hidden="true"><span>↶</span><span class="home-guide-hand">☝</span><span>↷</span></div>
+        <strong>左右滑动 旋转果冻塔</strong>
+        <span>寻找缺口，继续下落</span>
+      </div>
+      <button id="startBtn" class="home-start-btn preview-start" type="button" aria-label="开始游戏"><span class="home-start-copy">开始游戏</span></button>
+    </section>
+
+    <div id="settingsPanel" class="overlay home-settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="home-settings-card">
+        <button id="closeSettingsBtn" class="home-settings-close" type="button" aria-label="关闭设置">×</button>
+        <h2 id="settingsTitle">游戏设置</h2>
+        <p>左右滑动旋转果冻塔，让胖猫从缺口落下。穿过果冻可以补充弹跳次数，避开粉红色危险果冻。</p>
+        <label class="home-motion-setting"><span>首页动画</span><input id="homeMotionToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
+        <label class="home-motion-setting"><span>游戏音效</span><input id="soundToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
+        <button id="settingsDoneBtn" class="home-settings-done" type="button">完成</button>
       </div>
     </div>
 
@@ -67,6 +104,6 @@
     </div>
   </main>
 
-  <script type="module" src="./boot.bundle.js?v=c04026688073"></script>
+  <script type="module" src="./boot.bundle.js?v=48b9629862b6"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* cat-cookie-tower V1.0.0 production preview | source aeaf6a0e | no sourcemap */
+/* cat-cookie-tower V1.0.0 production preview | source 29b41169 | no sourcemap */
 
 const __mod_candy_jelly_material = (() => {
 const THREE = globalThis.__THREE__;
@@ -182,6 +182,9 @@ const GAME_ASSETS = Object.freeze({
   hud: './assets/ui-hud-game.png', depth: './assets/ui-depth-game.png',
   bounce: './assets/ui-bounce-game.png', score: './assets/star-game.png',
   result: './assets/ui-results-game.png',
+  homeTitle: './assets/home-title.png', homeStart: './assets/home-start.png',
+  homeSettings: './assets/home-settings.png',
+  homeJellySafe: './assets/home-jelly-safe.png', homeJellyDanger: './assets/home-jelly-danger.png',
 });
 const CAT_SOURCES = Object.freeze({
   idle: GAME_ASSETS.idle, fall: GAME_ASSETS.fall, eat: GAME_ASSETS.eat,
@@ -619,6 +622,54 @@ const GAME_CONFIG = Object.freeze({
 });
 
 return { GAME_CONFIG };
+})();
+
+const __mod_game_sounds = (() => {
+// Short, dry cues. Every client uses the same source recordings and event names.
+const GAME_SOUNDS = Object.freeze(Object.fromEntries(
+  ['jump', 'land', 'eat', 'combo', 'low', 'hazard', 'starved', 'smash']
+    .map(name => [name, `./assets/sfx/${name}.wav`]),
+));
+
+function createWebSounds() {
+  const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
+  let context = null, enabled = true;
+  const sourceData = new Map(Object.entries(GAME_SOUNDS).map(([name, url]) => [name,
+    fetch(url).then(response => {
+      if (!response.ok) throw new Error(`音效加载失败：${url}`);
+      return response.arrayBuffer();
+    }).catch(() => null)]));
+  const buffers = new Map();
+  function unlock() {
+    if (!enabled || !AudioContext) return;
+    if (!context) {
+      context = new AudioContext();
+      for (const [name, data] of sourceData) {
+        data.then(bytes => bytes && context.decodeAudioData(bytes)).then(buffer => {
+          if (buffer) buffers.set(name, buffer);
+        }).catch(() => {});
+      }
+    }
+    context.resume().catch(() => {});
+  }
+  return {
+    unlock,
+    setEnabled(value) { enabled = !!value; if (enabled) unlock(); },
+    play(name) {
+      if (!enabled || !context || context.state !== 'running') return;
+      const buffer = buffers.get(name);
+      if (!buffer) return;
+      const source = context.createBufferSource();
+      const gain = context.createGain();
+      gain.gain.value = .6;
+      source.buffer = buffer;
+      source.connect(gain).connect(context.destination);
+      source.start();
+    },
+  };
+}
+
+return { createWebSounds, GAME_SOUNDS };
 })();
 
 const __mod_platform_materials = (() => {
@@ -1175,11 +1226,18 @@ const { createWorldBackground } = __mod_world_background;
 const { mountMaterialSwitcher } = __mod_material_switcher;
 const { jellyCompression } = __mod_jelly_motion;
 const { CAT_SOURCES } = __mod_game_assets;
+const { createWebSounds } = __mod_game_sounds;
 
 const gameEl = document.getElementById('game');
 const frameEl = document.getElementById('phoneFrame');
 const debugMode = new URLSearchParams(location.search).has('debug');
 const loadingEl = document.getElementById('loading');
+const homeScreen = document.getElementById('homeScreen');
+const settingsPanel = document.getElementById('settingsPanel');
+const settingsBtn = document.getElementById('settingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const settingsDoneBtn = document.getElementById('settingsDoneBtn');
+const sounds = createWebSounds();
 const hud = {
   depth: document.getElementById('depth'),
   jumps: document.getElementById('jumps'),
@@ -1437,9 +1495,12 @@ function updateHUD() {
 function consumeBounce() {
   if (!rules.bounce()) {
     state = 'starved';
+    sounds.play('starved');
     showGameOver('starved');
     return false;
   }
+  sounds.play('jump');
+  if (rules.jumps === 2) sounds.play('low');
   updateHUD();
   pulse = -0.08;
   vy = CONFIG.jumpVelocity;
@@ -1449,6 +1510,7 @@ function consumeBounce() {
 }
 
 function landOn(layer) {
+  sounds.play('land');
   cleanupLayersAbove(layer.index);
   compressJelly(layer, vy);
   landedLayer = layer;
@@ -1486,6 +1548,8 @@ function beginEat(layer) {
   if (layer.eaten) return;
   layer.eaten = true;
   rules.passLayer();
+  sounds.play('eat');
+  if (rules.combo === 3 || rules.combo === CONFIG.breakthroughCombo) sounds.play('combo');
   if (rules.combo === CONFIG.breakthroughCombo) smashReady = true;
   pulse = Math.min(0.22, pulse + 0.10);
   spawnPlusOne();
@@ -1499,6 +1563,7 @@ function beginEat(layer) {
 
 function startLandingSmash(layer) {
   if (layer.eaten || !smashReady) return;
+  sounds.play('land');
 
   smashReady = false;
   smashLayer = layer;
@@ -1528,6 +1593,7 @@ function resolveLandingSmash() {
   // the cat launches upward, making the smash readable instead of looking
   // like another pass-through.
   layer.eaten = true;
+  sounds.play('smash');
   rules.passLayer();
   spawnPlusOne();
   spawnEatFragments(layer);
@@ -1552,6 +1618,7 @@ function resolveLandingSmash() {
 
 function hitHazard(layer) {
   if (!rules.alive) return;
+  sounds.play('hazard');
   rules.hitHazard();
   state = 'hazardSinking';
   vy = 0;
@@ -1630,6 +1697,44 @@ function resetGame() {
 }
 
 hud.restartBtn.addEventListener('click', resetGame);
+document.getElementById('soundToggle').addEventListener('change', event => {
+  sounds.setEnabled(event.target.checked);
+});
+function closeSettings() {
+  settingsPanel.classList.add('hidden');
+  homeScreen.inert = false;
+  settingsBtn.focus();
+}
+settingsBtn.addEventListener('click', () => {
+  settingsPanel.classList.remove('hidden');
+  homeScreen.inert = true;
+  closeSettingsBtn.focus();
+});
+closeSettingsBtn.addEventListener('click', closeSettings);
+settingsDoneBtn.addEventListener('click', closeSettings);
+settingsPanel.addEventListener('click', event => {
+  if (event.target === settingsPanel) closeSettings();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !settingsPanel.classList.contains('hidden')) closeSettings();
+});
+document.getElementById('homeMotionToggle').addEventListener('change', event => {
+  homeScreen.classList.toggle('no-motion', !event.target.checked);
+});
+document.getElementById('startBtn').addEventListener('click', () => {
+  sounds.unlock();
+  homeScreen.hidden = true;
+  frameEl.classList.remove('at-home');
+  resetGame();
+});
+document.getElementById('homeBtn').addEventListener('click', () => {
+  hud.gameOver.classList.add('hidden');
+  homeScreen.hidden = false;
+  frameEl.classList.add('at-home');
+  if (frameHandle !== null) cancelAnimationFrame(frameHandle);
+  frameHandle = null;
+  document.getElementById('startBtn').focus();
+});
 
 function collisionStep(prevY, currentY) {
   if (!rules.alive || state === 'landed' || vy >= 0) return;
@@ -1815,7 +1920,7 @@ let renderedFrames = 0;
 let last = performance.now();
 let nativeActive = globalThis.CatAndroidLifecycle?.active ?? true;
 function scheduleFrame(resetTime = false) {
-  if (!frameLoopReady || document.hidden || !nativeActive || frameHandle !== null) return;
+  if (!frameLoopReady || document.hidden || !nativeActive || frameEl.classList.contains('at-home') || frameHandle !== null) return;
   if (resetTime) last = performance.now();
   frameHandle = requestAnimationFrame(frame);
 }
@@ -1893,5 +1998,4 @@ if (debugMode) {
 await Promise.all(artLoads);
 loadingEl.classList.add('hidden');
 frameLoopReady = true;
-scheduleFrame(true);
 
