@@ -1,6 +1,6 @@
-/* cat-cookie-tower preview | source 39a4a279 | web 213727fc33e6 */
+/* cat-cookie-tower preview | source f4f70da1 | web 1951392e8c61 */
 
-// src/eat-effects.js?v=213727fc33e6
+// src/eat-effects.js?v=1951392e8c61
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
 }) {
   const TAU3 = Math.PI * 2;
@@ -214,14 +214,14 @@ function createBurstTexture(THREE6, createCanvas) {
   return texture;
 }
 
-// src/jelly-motion.mjs?v=213727fc33e6
+// src/jelly-motion.mjs?v=1951392e8c61
 var JELLY_CONTACT_TIME = Math.PI / 20;
 function jellyCompression(time, strength) {
   if (time < 0 || time >= 0.9) return 0;
   return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
 }
 
-// src/game-config.mjs?v=213727fc33e6
+// src/game-config.mjs?v=1951392e8c61
 var GAME_CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 10,
@@ -244,7 +244,7 @@ var GAME_CONFIG = Object.freeze({
   smashBounceVelocity: 4.15
 });
 
-// src/logic.mjs?v=213727fc33e6
+// src/logic.mjs?v=1951392e8c61
 var TAU = Math.PI * 2;
 function normalizeAngle(a) {
   a %= TAU;
@@ -443,7 +443,7 @@ var LayerGenerator = class {
   }
 };
 
-// src/classic-material.js?v=213727fc33e6
+// src/classic-material.js?v=1951392e8c61
 var THREE = globalThis.__THREE__;
 function createClassicMaterial(danger = false) {
   return new THREE.ShaderMaterial({
@@ -522,7 +522,7 @@ function createClassicMaterial(danger = false) {
   });
 }
 
-// src/candy-jelly-material.js?v=213727fc33e6
+// src/candy-jelly-material.js?v=1951392e8c61
 var THREE2 = globalThis.__THREE__;
 function createCandyJellyMaterial(config, danger = false) {
   const material = new THREE2.MeshPhysicalMaterial({
@@ -602,7 +602,7 @@ function createAirPocketMaterial(danger = false) {
   });
 }
 
-// src/platform-materials.js?v=213727fc33e6
+// src/platform-materials.js?v=1951392e8c61
 var THREE3 = globalThis.__THREE__;
 var STORAGE_KEY = "cat-tower.platform-material.v1";
 var DEFAULT_PLATFORM_PRESET = "jelly";
@@ -711,7 +711,7 @@ function createPlatformMaterials(config) {
   };
 }
 
-// src/visuals.js?v=213727fc33e6
+// src/visuals.js?v=1951392e8c61
 var THREE4 = globalThis.__THREE__;
 var TAU2 = Math.PI * 2;
 function canvasTexture(width, height, paint) {
@@ -1184,7 +1184,7 @@ function setVisibleTowerLayers(platforms, columns, focusY, reach) {
   }
 }
 
-// src/game-assets.mjs?v=213727fc33e6
+// src/game-assets.mjs?v=1951392e8c61
 var GAME_ASSETS = Object.freeze({
   world: "./assets/world-hd.png",
   column: "./assets/column-hd.png",
@@ -1211,7 +1211,7 @@ var CAT_SOURCES = Object.freeze({
   fail: GAME_ASSETS.fail
 });
 
-// src/world-background.js?v=213727fc33e6
+// src/world-background.js?v=1951392e8c61
 function createWorldBackground(scene2, loadTexture) {
   const texture = loadTexture(GAME_ASSETS.world);
   scene2.background = texture;
@@ -1227,7 +1227,7 @@ function createWorldBackground(scene2, loadTexture) {
   };
 }
 
-// src/material-switcher.js?v=213727fc33e6
+// src/material-switcher.js?v=1951392e8c61
 function mountMaterialSwitcher(art2, root, parent) {
   const panel = document.createElement("details");
   panel.className = "material-switcher";
@@ -1270,7 +1270,7 @@ function mountMaterialSwitcher(art2, root, parent) {
   parent.appendChild(panel);
 }
 
-// src/game-sounds.mjs?v=213727fc33e6
+// src/game-sounds.mjs?v=1951392e8c61
 var GAME_SOUNDS = Object.freeze(Object.fromEntries(
   ["jump", "land", "eat", "combo", "low", "hazard", "starved", "smash"].map((name) => [name, `./assets/sfx/${name}.wav`])
 ));
@@ -1930,6 +1930,7 @@ var dragging = false;
 var pointerX = 0;
 function pointerDown(e) {
   if (!rules.alive) return;
+  sounds.unlock();
   dragging = true;
   pointerX = e.clientX;
   renderer.domElement.setPointerCapture?.(e.pointerId);
@@ -2053,6 +2054,7 @@ if (debugMode) {
     }
   };
 }
-await Promise.all(artLoads);
 loadingEl.classList.add("hidden");
 frameLoopReady = true;
+globalThis.dispatchEvent(new Event("cat-game-ready"));
+await Promise.all(artLoads);

@@ -1,5 +1,27 @@
-/* cat-cookie-tower preview | source 39a4a279 | web 213727fc33e6 */
+/* cat-cookie-tower preview | source f4f70da1 | web 1951392e8c61 */
 const loadingEl = document.getElementById('loading');
+const startBtn = document.getElementById('startBtn');
+let gameReady = false;
+let startQueued = false;
+
+function queueStart(event) {
+  if (gameReady) return;
+  event.stopImmediatePropagation();
+  startQueued = true;
+  loadingEl.classList.remove('hidden');
+}
+
+startBtn.addEventListener('click', queueStart, true);
+globalThis.addEventListener('cat-game-ready', () => {
+  gameReady = true;
+  clearTimeout(startupTimeout);
+  startBtn.removeEventListener('click', queueStart, true);
+  loadingEl.classList.add('hidden');
+  if (startQueued) startBtn.click();
+}, { once: true });
+
+// The title screen needs no WebGL textures. Show it while the game loads.
+loadingEl.classList.add('hidden');
 globalThis.CatAndroidLifecycle ||= {
   active: true,
   setActive(active) { this.active = !!active; },
@@ -37,18 +59,23 @@ function escapeHTML(value) {
 }
 
 function showBootError(err) {
+  loadingEl?.classList.remove('hidden');
   const card = loadingEl?.querySelector('.loader-card');
   if (!card) return;
   card.innerHTML = `
     <div class="cat-mark">😿🍪</div>
     <h1>游戏加载失败</h1>
-    <p>请通过 <code>start.bat</code> 启动游戏，并确认 <code>assets/</code> 和 <code>vendor/</code> 文件完整后刷新。</p>
+    <p>请检查网络连接与游戏资源是否完整，然后刷新页面重试。</p>
     <details style="text-align:left;font-size:12px;opacity:.72;max-height:150px;overflow:auto"><summary>错误详情</summary><pre style="white-space:pre-wrap">${escapeHTML(err?.message || err)}</pre></details>`;
 }
 
+const startupTimeout = setTimeout(() => {
+  if (!gameReady) showBootError(new Error('游戏初始化超时，请检查网络后刷新页面重试。'));
+}, 45000);
+
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=213727fc33e6');
+  await import('./game.bundle.js?v=1951392e8c61');
 } catch (err) {
   console.error(err);
   showBootError(err);
