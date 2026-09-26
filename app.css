@@ -244,19 +244,30 @@ body {
 @keyframes bob { to { transform: translateY(-8px) rotate(4deg); } }
 .loading { z-index: 50; background: rgba(176,232,255,.62); }
 
-/* Portrait title screen assembled from the supplied transparent artwork. */
+/* The title screen keeps a lightweight static fallback, then fades into the real game renderer. */
 .at-home #game, .at-home .hud, .at-home .toast, .at-home .world-label,
 .at-home .material-switcher { visibility: hidden; }
+.at-home.home-demo-running #game { visibility: visible; }
 .home-screen {
   position: absolute; inset: 0; z-index: 40; overflow: hidden;
-  background: #9adbf9 url('./assets/world-hd.png') center center / cover no-repeat;
+  background: transparent;
 }
 .home-screen[hidden] { display: none; }
+.home-screen::after {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: #9adbf9 url('./assets/world-hd.png') center center / cover no-repeat;
+  opacity: 1; transition: opacity .42s ease;
+}
 .home-screen::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background: linear-gradient(180deg, #ffffff14, transparent 35%, #ffffff12 78%, #ffdcf333);
 }
-.home-scenery { position: absolute; inset: 0; pointer-events: none; }
+.home-scenery {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  opacity: 1; transition: opacity .38s ease;
+}
+.home-screen.home-demo-ready::after,
+.home-screen.home-demo-ready .home-scenery { opacity: 0; }
 .home-pillar {
   position: absolute; top: -8%; bottom: -10%; left: 24%; width: 52%;
   background: url('./assets/column-hd.png') center top / 100% auto repeat-y;

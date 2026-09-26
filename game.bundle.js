@@ -1,4 +1,4 @@
-/* cat-cookie-tower preview | source 10fddf31 | web 64d8f0fbc248 */
+/* cat-cookie-tower preview | source cafe0f69 | web f4afd8633f56 */
 
 // src/eat-effects.js?v=64d8f0fbc248
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
@@ -1399,8 +1399,9 @@ var pillarRoot = new THREE5.Group();
 scene.add(pillarRoot);
 var pillarModules = /* @__PURE__ */ new Map();
 function ensurePillarModules() {
-  const start = Math.max(0, rules.depth - GAME_CONFIG.keepBehind - 3);
-  const end = rules.depth + GAME_CONFIG.aheadLayers + 1;
+  const depth = currentDepth();
+  const start = Math.max(0, depth - GAME_CONFIG.keepBehind - 3);
+  const end = depth + GAME_CONFIG.aheadLayers + 1;
   for (let i = start; i <= end; i++) {
     if (!pillarModules.has(i)) {
       const module = art.createColumn(i);
@@ -1458,6 +1459,17 @@ function setCatTexture(name) {
 }
 var cat = createCat();
 var rules = new GameRules({ initialJumps: GAME_CONFIG.initialJumps, maxJumps: GAME_CONFIG.maxJumps });
+var homeDemo = {
+  active: false,
+  motion: true,
+  assetsReady: false,
+  depth: 0,
+  speed: 1.52,
+  seed: 12648430
+};
+function currentDepth() {
+  return homeDemo.active ? homeDemo.depth : rules.depth;
+}
 var generator = new LayerGenerator((Date.now() ^ 659918) >>> 0);
 var layers = /* @__PURE__ */ new Map();
 var eatEffects = createEatEffects(
@@ -1482,13 +1494,14 @@ function makeLayer(index) {
   return layer;
 }
 function ensureLayers() {
-  const start = Math.max(0, rules.depth);
-  const end = rules.depth + GAME_CONFIG.aheadLayers;
+  const depth = currentDepth();
+  const start = Math.max(0, depth);
+  const end = depth + GAME_CONFIG.aheadLayers;
   for (let i = start; i <= end; i++) {
     if (!layers.has(i)) makeLayer(i);
   }
   for (const [i, layer] of layers) {
-    if (i < rules.depth - GAME_CONFIG.keepBehind) {
+    if (i < depth - GAME_CONFIG.keepBehind) {
       disposePlatform(layer.group);
       layers.delete(i);
     }
@@ -1566,6 +1579,105 @@ var smashReady = false;
 var smashLayer = null;
 var smashTimer = 0;
 var smashBaseY = 0;
+function resetHomeDemoScene() {
+  clearTimeout(gameOverTimer);
+  if (poisonSink) {
+    poisonSink.contact.removeFromParent();
+    poisonSink = null;
+  }
+  rules.reset();
+  generator = new LayerGenerator(homeDemo.seed);
+  clearLayers();
+  clearPillarModules();
+  eatEffects.clear();
+  frameEl.querySelectorAll(".plus-one").forEach((el) => el.remove());
+  hud.combo.classList.remove("show");
+  hud.gameOver.classList.add("hidden");
+  homeDemo.depth = 0;
+  homeDemo.speed = 1.52;
+  towerRoot.rotation.y = 0;
+  pulse = 0;
+  squash = 0;
+  vy = 0;
+  state = "homeDemo";
+  landedLayer = null;
+  smashReady = false;
+  smashLayer = null;
+  cat.eatTimer = 0;
+  cat.root.rotation.set(0, 0, 0);
+  ensureLayers();
+  ensurePillarModules();
+  const firstLayer = layers.get(0);
+  const startY = (firstLayer ? layerTopY(firstLayer) : 0) + getCatRadius() + 1.35;
+  cat.root.position.set(0, startY, GAME_CONFIG.catZ);
+  cat.visual.scale.setScalar(targetCatScale() * 1.5);
+  cat.visual.position.y = -getCatRadius() + 0.08;
+  cat.shadow.visible = false;
+  setCatTexture("fall");
+  cameraFocusY = cat.root.position.y - 1.45;
+}
+function startHomeDemo() {
+  if (!homeDemo.assetsReady || !homeDemo.motion || homeScreen.hidden) return;
+  homeDemo.active = true;
+  resetHomeDemoScene();
+  frameEl.classList.add("home-demo-running");
+  homeScreen.classList.add("home-demo-ready");
+  scheduleFrame(true);
+}
+function stopHomeDemo() {
+  homeDemo.active = false;
+  frameEl.classList.remove("home-demo-running");
+  homeScreen.classList.remove("home-demo-ready");
+}
+function updateHomeDemo(dt) {
+  if (!homeDemo.active || !homeDemo.motion) return;
+  const layer = layers.get(homeDemo.depth);
+  let targetRotation = towerRoot.rotation.y;
+  if (layer && !layer.eaten) {
+    targetRotation = -layer.data.primaryAngle;
+    const delta = Math.atan2(
+      Math.sin(targetRotation - towerRoot.rotation.y),
+      Math.cos(targetRotation - towerRoot.rotation.y)
+    );
+    towerRoot.rotation.y += delta * (1 - Math.exp(-4.2 * dt));
+  } else {
+    towerRoot.rotation.y += 0.12 * dt;
+  }
+  const radius = getCatRadius();
+  const prevBottom = cat.root.position.y - radius;
+  const fallWave = 1 + Math.sin(performance.now() * 0.0035) * 0.055;
+  cat.root.position.y -= homeDemo.speed * fallWave * dt;
+  const currBottom = cat.root.position.y - radius;
+  if (layer && !layer.eaten) {
+    const top = layerTopY(layer);
+    if (prevBottom >= top && currBottom <= top + 0.02) {
+      towerRoot.rotation.y = targetRotation;
+      layer.eaten = true;
+      cat.eatTimer = Math.max(cat.eatTimer, 0.28);
+      pulse = Math.max(pulse, 0.12);
+      spawnEatFragments(layer);
+      disposePlatform(layer.group);
+      layers.delete(layer.index);
+      homeDemo.depth += 1;
+      homeDemo.speed = Math.min(2.02, 1.52 + homeDemo.depth * 0.018);
+    }
+  }
+  pulse *= Math.pow(0.045, dt);
+  cat.eatTimer = Math.max(0, cat.eatTimer - dt);
+  const base = targetCatScale();
+  const breathe = 1 + Math.sin(performance.now() * 0.005) * 0.012;
+  const sx = base * breathe * (1 + pulse * 0.45);
+  const sy = base / breathe * (1 + pulse * 0.25);
+  const follow = dt ? 1 - Math.exp(-12 * dt) : 1;
+  cat.visual.scale.x = THREE5.MathUtils.lerp(cat.visual.scale.x, 1.5 * sx, follow);
+  cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.5 * sy, follow);
+  cat.visual.scale.z = 1;
+  cat.visual.position.y = -radius + 0.08;
+  cat.visual.material.rotation = Math.sin(performance.now() * 0.008) * 0.032;
+  cat.visual.rotation.z = Math.sin(performance.now() * 0.01) * 0.025;
+  cat.shadow.visible = false;
+  setCatTexture(cat.eatTimer > 0 ? "eat" : "fall");
+}
 function updateHUD() {
   hud.depth.textContent = String(rules.depth);
   hud.jumps.textContent = `× ${rules.jumps}`;
@@ -1774,11 +1886,16 @@ settingsPanel.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !settingsPanel.classList.contains("hidden")) closeSettings();
 });
-document.getElementById("homeMotionToggle").addEventListener("change", (event) => {
+var homeMotionToggle = document.getElementById("homeMotionToggle");
+homeMotionToggle.addEventListener("change", (event) => {
+  homeDemo.motion = event.target.checked;
   homeScreen.classList.toggle("no-motion", !event.target.checked);
+  if (event.target.checked) startHomeDemo();
+  else stopHomeDemo();
 });
 document.getElementById("startBtn").addEventListener("click", () => {
   sounds.unlock();
+  stopHomeDemo();
   homeScreen.hidden = true;
   frameEl.classList.remove("at-home");
   resetGame();
@@ -1789,6 +1906,7 @@ document.getElementById("homeBtn").addEventListener("click", () => {
   frameEl.classList.add("at-home");
   if (frameHandle !== null) cancelAnimationFrame(frameHandle);
   frameHandle = null;
+  if (homeDemo.motion) startHomeDemo();
   document.getElementById("startBtn").focus();
 });
 function collisionStep(prevY, currentY) {
@@ -1911,8 +2029,8 @@ function updateCat(dt) {
 var cameraFocusY = 0;
 function updateCamera(dt) {
   const anchorY = poisonSink ? poisonSink.startY : cat.root.position.y;
-  const targetY = anchorY - (rules.depth === 0 ? 2.15 : 1.45);
-  const speed = targetY < cameraFocusY ? 9 : 1.6;
+  const targetY = anchorY - (homeDemo.active ? 1.45 : rules.depth === 0 ? 2.15 : 1.45);
+  const speed = targetY < cameraFocusY ? homeDemo.active ? 7 : 9 : 1.6;
   cameraFocusY = THREE5.MathUtils.lerp(cameraFocusY, targetY, 1 - Math.exp(-speed * dt));
   cameraFocusY = Math.min(cameraFocusY, targetY + 0.75);
   camera.position.set(0, cameraFocusY + 8.2, 20);
@@ -1962,7 +2080,8 @@ var renderedFrames = 0;
 var last = performance.now();
 var nativeActive = globalThis.CatAndroidLifecycle?.active ?? true;
 function scheduleFrame(resetTime = false) {
-  if (!frameLoopReady || document.hidden || !nativeActive || frameEl.classList.contains("at-home") || frameHandle !== null) return;
+  const homeBlocked = frameEl.classList.contains("at-home") && !homeDemo.active;
+  if (!frameLoopReady || document.hidden || !nativeActive || homeBlocked || frameHandle !== null) return;
   if (resetTime) last = performance.now();
   frameHandle = requestAnimationFrame(frame);
 }
@@ -2006,7 +2125,8 @@ function frame(now) {
   ensureLayers();
   ensurePillarModules();
   updateJellyMotion(dt);
-  updateCat(dt);
+  if (homeDemo.active) updateHomeDemo(dt);
+  else updateCat(dt);
   eatEffects.update(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
@@ -2057,4 +2177,6 @@ if (debugMode) {
 await Promise.all(artLoads);
 loadingEl.classList.add("hidden");
 frameLoopReady = true;
+homeDemo.assetsReady = true;
+if (!homeScreen.hidden && homeDemo.motion) startHomeDemo();
 globalThis.dispatchEvent(new Event("cat-game-ready"));

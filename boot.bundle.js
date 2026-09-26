@@ -1,4 +1,4 @@
-/* cat-cookie-tower preview | source 10fddf31 | web 64d8f0fbc248 */
+/* cat-cookie-tower preview | source cafe0f69 | web f4afd8633f56 */
 const loadingEl = document.getElementById('loading');
 const startBtn = document.getElementById('startBtn');
 let gameReady = false;
@@ -75,7 +75,7 @@ const startupTimeout = setTimeout(() => {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=64d8f0fbc248');
+  await import('./game.bundle.js?v=f4afd8633f56');
 } catch (err) {
   console.error(err);
   showBootError(err);
