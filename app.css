@@ -258,7 +258,7 @@ body {
   content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background: linear-gradient(180deg, #ffffff14, transparent 35%, #ffffff12 78%, #ffdcf333);
 }
-.home-title { position: absolute; z-index: 4; top: 5.5%; left: -1%; width: 102%; margin: 0; pointer-events: none; }
+.home-title { position: absolute; z-index: 4; top: 7%; left: -1%; width: 102%; margin: 0; pointer-events: none; }
 .home-title img { display: block; width: 100%; height: auto; filter: drop-shadow(0 7px 7px #a943543d); }
 .home-settings-btn, .home-start-btn {
   position: absolute; z-index: 5; display: block; border: 0; padding: 0;
@@ -267,7 +267,7 @@ body {
 }
 .home-settings-btn img, .home-start-btn img { display: block; width: 100%; height: auto; }
 .home-settings-btn { top: 0.5%; right: 0.5%; width: 19%; min-width: 44px; }
-.home-start-btn { left: 11%; bottom: 5%; width: 78%; animation: home-start-pulse 2.2s ease-in-out infinite; }
+.home-start-btn { left: 11%; bottom: 7.5%; width: 78%; animation: home-start-pulse 2.2s ease-in-out infinite; }
 .home-settings-btn:hover, .home-start-btn:hover { filter: brightness(1.06); transform: translateY(-2px) scale(1.025); }
 .home-settings-btn:active, .home-start-btn:active { transform: translateY(2px) scale(.98); }
 .home-settings-btn:focus-visible, .home-start-btn:focus-visible { outline: 3px solid #7b3e85; outline-offset: 1px; border-radius: 20px; }
