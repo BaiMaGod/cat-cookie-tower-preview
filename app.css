@@ -262,32 +262,7 @@ body {
   content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background: linear-gradient(180deg, #ffffff14, transparent 35%, #ffffff12 78%, #ffdcf333);
 }
-.home-scenery {
-  position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  opacity: 1; transition: opacity .38s ease;
-}
-.home-screen.home-demo-ready::after,
-.home-screen.home-demo-ready .home-scenery { opacity: 0; }
-.home-pillar {
-  position: absolute; top: -8%; bottom: -10%; left: 24%; width: 52%;
-  background: url('./assets/column-hd.png') center top / 100% auto repeat-y;
-  filter: drop-shadow(0 8px 14px #985c7c45);
-}
-.home-jelly, .home-cat { position: absolute; display: block; object-fit: contain; }
-.home-jelly { filter: drop-shadow(0 8px 8px #38846660); }
-.jelly-1 { width: 48%; left: 20%; top: 21%; transform: rotate(-8deg); }
-.jelly-2 { width: 40%; left: 50%; top: 23%; transform: rotate(8deg); }
-.jelly-3 { width: 48%; left: 14%; top: 33%; transform: rotate(-12deg); }
-.jelly-4 { width: 30%; left: 61%; top: 37%; transform: rotate(9deg); filter: drop-shadow(0 8px 8px #a8245260); }
-.jelly-5 { width: 45%; left: 49%; top: 48%; transform: rotate(11deg); }
-.jelly-6 { width: 47%; left: 14%; top: 52%; transform: rotate(-9deg); }
-.jelly-7 { width: 37%; left: 21%; top: 69%; transform: rotate(-11deg); filter: drop-shadow(0 8px 8px #a8245260); }
-.jelly-8 { width: 47%; left: 49%; top: 72%; transform: rotate(10deg); }
-.home-cat {
-  z-index: 2; width: 34%; left: 33%; top: 40%;
-  filter: drop-shadow(0 10px 10px #bc7e7173);
-  animation: home-float 2.6s ease-in-out infinite alternate;
-}
+.home-screen.home-demo-ready::after { opacity: 0; }
 .home-title { position: absolute; z-index: 4; top: 5.5%; left: -1%; width: 102%; margin: 0; pointer-events: none; }
 .home-title img { display: block; width: 100%; height: auto; filter: drop-shadow(0 7px 7px #a943543d); }
 .home-settings-btn, .home-start-btn {
@@ -321,8 +296,7 @@ body {
 .home-motion-setting input:focus-visible + .home-motion-switch { outline: 3px solid #7b3e85; outline-offset: 3px; }
 .home-settings-done { width: 100%; min-height: 47px; margin-top: 17px; border: 2px solid #fff9e2; border-radius: 17px; background: linear-gradient(#ffd65a, #ffab28); box-shadow: 0 4px 0 #d6832c; color: #85401b; font: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
 .home-settings-done:focus-visible, .home-settings-close:focus-visible { outline: 3px solid #7b3e85; outline-offset: 2px; }
-.home-screen.no-motion .home-cat, .home-screen.no-motion .home-start-btn { animation: none; }
-@keyframes home-float { to { transform: translateY(-9px) rotate(3deg); } }
+.home-screen.no-motion .home-start-btn { animation: none; }
 @keyframes home-start-pulse { 50% { filter: brightness(1.06) drop-shadow(0 0 11px #fff3b1); } }
 
 .plus-one {

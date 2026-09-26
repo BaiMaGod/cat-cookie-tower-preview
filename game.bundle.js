@@ -1,4 +1,4 @@
-/* cat-cookie-tower preview | source cafe0f69 | web f4afd8633f56 */
+/* cat-cookie-tower preview | source fd731e4b | web 8572769fdd1e */
 
 // src/eat-effects.js?v=64d8f0fbc248
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
@@ -1464,7 +1464,9 @@ var homeDemo = {
   motion: true,
   assetsReady: false,
   depth: 0,
-  speed: 1.52,
+  phase: "falling",
+  chainRemaining: 3,
+  landingTimer: 0,
   seed: 12648430
 };
 function currentDepth() {
@@ -1594,11 +1596,13 @@ function resetHomeDemoScene() {
   hud.combo.classList.remove("show");
   hud.gameOver.classList.add("hidden");
   homeDemo.depth = 0;
-  homeDemo.speed = 1.52;
+  homeDemo.phase = "falling";
+  homeDemo.chainRemaining = 3;
+  homeDemo.landingTimer = 0;
   towerRoot.rotation.y = 0;
   pulse = 0;
   squash = 0;
-  vy = 0;
+  vy = -0.8;
   state = "homeDemo";
   landedLayer = null;
   smashReady = false;
@@ -1629,55 +1633,90 @@ function stopHomeDemo() {
   frameEl.classList.remove("home-demo-running");
   homeScreen.classList.remove("home-demo-ready");
 }
+function homeDemoRotationFor(layer) {
+  const wantsGap = homeDemo.phase === "bouncing" || homeDemo.chainRemaining > 0;
+  if (wantsGap) return -layer.data.primaryAngle;
+  const safe = platformSpans(layer.data).find((span) => span.type === "safe");
+  return safe ? -(safe.start + safe.width / 2) : -layer.data.primaryAngle;
+}
 function updateHomeDemo(dt) {
   if (!homeDemo.active || !homeDemo.motion) return;
   const layer = layers.get(homeDemo.depth);
-  let targetRotation = towerRoot.rotation.y;
-  if (layer && !layer.eaten) {
-    targetRotation = -layer.data.primaryAngle;
-    const delta = Math.atan2(
-      Math.sin(targetRotation - towerRoot.rotation.y),
-      Math.cos(targetRotation - towerRoot.rotation.y)
-    );
-    towerRoot.rotation.y += delta * (1 - Math.exp(-4.2 * dt));
-  } else {
-    towerRoot.rotation.y += 0.12 * dt;
-  }
   const radius = getCatRadius();
-  const prevBottom = cat.root.position.y - radius;
-  const fallWave = 1 + Math.sin(performance.now() * 0.0035) * 0.055;
-  cat.root.position.y -= homeDemo.speed * fallWave * dt;
-  const currBottom = cat.root.position.y - radius;
-  if (layer && !layer.eaten) {
-    const top = layerTopY(layer);
-    if (prevBottom >= top && currBottom <= top + 0.02) {
-      towerRoot.rotation.y = targetRotation;
-      layer.eaten = true;
-      cat.eatTimer = Math.max(cat.eatTimer, 0.28);
-      pulse = Math.max(pulse, 0.12);
-      spawnEatFragments(layer);
-      disposePlatform(layer.group);
-      layers.delete(layer.index);
-      homeDemo.depth += 1;
-      homeDemo.speed = Math.min(2.02, 1.52 + homeDemo.depth * 0.018);
+  if (!layer) return;
+  const targetRotation = homeDemoRotationFor(layer);
+  const rotationDelta = Math.atan2(
+    Math.sin(targetRotation - towerRoot.rotation.y),
+    Math.cos(targetRotation - towerRoot.rotation.y)
+  );
+  towerRoot.rotation.y += rotationDelta * (1 - Math.exp(-6.2 * dt));
+  if (homeDemo.phase === "landed") {
+    cat.root.position.y = layerTopY(layer) + radius;
+    homeDemo.landingTimer -= dt;
+    if (homeDemo.landingTimer <= 0) {
+      homeDemo.phase = "bouncing";
+      homeDemo.chainRemaining = 4;
+      vy = GAME_CONFIG.jumpVelocity;
+      pulse = -0.08;
+    }
+  } else {
+    const prevY = cat.root.position.y;
+    const prevBottom = prevY - radius;
+    vy += GAME_CONFIG.gravity * dt;
+    cat.root.position.y += vy * dt;
+    const currBottom = cat.root.position.y - radius;
+    if (vy < 0) {
+      const top = layerTopY(layer);
+      if (prevBottom >= top && currBottom <= top) {
+        if (homeDemo.phase === "falling" && homeDemo.chainRemaining === 0) {
+          towerRoot.rotation.y = targetRotation;
+          const impactSpeed = vy;
+          cat.root.position.y = top + radius;
+          vy = 0;
+          homeDemo.phase = "landed";
+          homeDemo.landingTimer = GAME_CONFIG.landingPause;
+          squash = 1;
+          compressJelly(layer, impactSpeed);
+        } else {
+          towerRoot.rotation.y = -layer.data.primaryAngle;
+          layer.eaten = true;
+          cat.eatTimer = Math.max(cat.eatTimer, 0.28);
+          pulse = Math.max(pulse, 0.12);
+          spawnEatFragments(layer);
+          disposePlatform(layer.group);
+          layers.delete(layer.index);
+          homeDemo.depth += 1;
+          homeDemo.chainRemaining = Math.max(0, homeDemo.chainRemaining - 1);
+          homeDemo.phase = "falling";
+        }
+      }
     }
   }
-  pulse *= Math.pow(0.045, dt);
-  cat.eatTimer = Math.max(0, cat.eatTimer - dt);
+  const isFalling = homeDemo.phase !== "landed" && vy < -0.8;
   const base = targetCatScale();
-  const breathe = 1 + Math.sin(performance.now() * 0.005) * 0.012;
-  const sx = base * breathe * (1 + pulse * 0.45);
-  const sy = base / breathe * (1 + pulse * 0.25);
-  const follow = dt ? 1 - Math.exp(-12 * dt) : 1;
+  pulse *= Math.pow(0.035, dt);
+  squash *= Math.pow(0.0025, dt);
+  cat.eatTimer = Math.max(0, cat.eatTimer - dt);
+  const sx = base * (1 + pulse + squash * 0.12) * (isFalling ? 0.96 : 1);
+  const sy = base * (1 + pulse * 0.55 - squash * 0.18) * (isFalling ? 1.04 : 1);
+  const follow = dt ? 1 - Math.exp(-14 * dt) : 1;
   cat.visual.scale.x = THREE5.MathUtils.lerp(cat.visual.scale.x, 1.5 * sx, follow);
   cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.5 * sy, follow);
   cat.visual.scale.z = 1;
   cat.visual.position.y = -radius + 0.08;
-  cat.visual.material.rotation = Math.sin(performance.now() * 0.008) * 0.032;
-  cat.visual.rotation.z = Math.sin(performance.now() * 0.01) * 0.025;
+  cat.visual.material.rotation = isFalling ? Math.sin(performance.now() * 0.008) * 0.035 : 0;
+  cat.visual.rotation.z = THREE5.MathUtils.lerp(
+    cat.visual.rotation.z,
+    isFalling ? Math.sin(performance.now() * 0.01) * 0.035 : 0,
+    1 - Math.exp(-9 * dt)
+  );
   cat.shadow.visible = false;
-  setCatTexture(cat.eatTimer > 0 ? "eat" : "fall");
+  if (homeDemo.phase === "landed" && squash > 0.18) setCatTexture("squash");
+  else if (cat.eatTimer > 0) setCatTexture("eat");
+  else if (isFalling) setCatTexture("fall");
+  else setCatTexture("idle");
 }
+
 function updateHUD() {
   hud.depth.textContent = String(rules.depth);
   hud.jumps.textContent = `× ${rules.jumps}`;
