@@ -253,16 +253,10 @@ body {
   background: transparent;
 }
 .home-screen[hidden] { display: none; }
-.home-screen::after {
-  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background: #9adbf9 url('./assets/world-hd.png') center center / cover no-repeat;
-  opacity: 1; transition: opacity .42s ease;
-}
 .home-screen::before {
   content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background: linear-gradient(180deg, #ffffff14, transparent 35%, #ffffff12 78%, #ffdcf333);
 }
-.home-screen.home-demo-ready::after { opacity: 0; }
 .home-title { position: absolute; z-index: 4; top: 5.5%; left: -1%; width: 102%; margin: 0; pointer-events: none; }
 .home-title img { display: block; width: 100%; height: auto; filter: drop-shadow(0 7px 7px #a943543d); }
 .home-settings-btn, .home-start-btn {
