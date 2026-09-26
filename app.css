@@ -245,6 +245,7 @@ body {
 .loading { z-index: 50; background: rgba(176,232,255,.62); }
 
 /* The title screen keeps a lightweight static fallback, then fades into the real game renderer. */
+.home-scenery, .home-pillar, .home-jelly, .home-cat { display: none !important; }
 .at-home #game, .at-home .hud, .at-home .toast, .at-home .world-label,
 .at-home .material-switcher { visibility: hidden; }
 .at-home.home-demo-running #game { visibility: visible; }

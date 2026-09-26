@@ -1,4 +1,4 @@
-/* cat-cookie-tower preview | source 3552a1f8 | web a3657a77d9e4 */
+/* cat-cookie-tower preview | source 909e5880 | web eea903da260d */
 
 // src/eat-effects.js?v=64d8f0fbc248
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
@@ -2170,8 +2170,6 @@ if (debugMode) {
     }
   };
 }
-await Promise.all(artLoads);
-loadingEl.classList.add("hidden");
 frameLoopReady = true;
 homeDemo.assetsReady = true;
 if (!homeScreen.hidden && homeDemo.motion) startHomeDemo();
