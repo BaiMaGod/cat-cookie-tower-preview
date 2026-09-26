@@ -1868,8 +1868,8 @@ function updateCat(dt) {
   cat.eatTimer = Math.max(0, cat.eatTimer - dt);
   const sx = base * (1 + pulse + squash * 0.12) * (isFalling ? 0.96 : 1);
   const sy = base * (1 + pulse * 0.55 - squash * 0.18) * (isFalling ? 1.04 : 1);
-  cat.visual.scale.x = THREE5.MathUtils.lerp(cat.visual.scale.x, 1.85 * sx, dt ? 1 - Math.exp(-14 * dt) : 1);
-  cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.85 * sy, dt ? 1 - Math.exp(-14 * dt) : 1);
+  cat.visual.scale.x = THREE5.MathUtils.lerp(cat.visual.scale.x, 1.50 * sx, dt ? 1 - Math.exp(-14 * dt) : 1);
+  cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.50 * sy, dt ? 1 - Math.exp(-14 * dt) : 1);
   cat.visual.scale.z = 1;
   cat.visual.position.y = -getCatRadius() + 0.08;
   cat.visual.material.rotation = isFalling ? Math.sin(performance.now() * 8e-3) * 0.035 : 0;
