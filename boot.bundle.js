@@ -1,4 +1,7 @@
-/* cat-cookie-tower preview | source 893e2f16 | web e551cb090f28 */
+/* cat-cookie-tower preview | source 06d63940 | web 1bb5f150cffd */
+import { applyTranslations, t } from './i18n.mjs?v=1bb5f150cffd';
+
+applyTranslations();
 const loadingEl = document.getElementById('loading');
 const startBtn = document.getElementById('startBtn');
 let gameReady = false;
@@ -36,7 +39,7 @@ const sources = [
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} 加载超时`)), ms)),
+    new Promise((_, reject) => setTimeout(() => reject(new Error(t('loadTimeout', { label }))), ms)),
   ]);
 }
 
@@ -46,7 +49,7 @@ async function loadThree() {
     try {
       const mod = await withTimeout(import(src), timeout, src);
       if (mod?.Scene && mod?.WebGLRenderer) return mod;
-      throw new Error('模块缺少 Three.js 核心导出');
+      throw new Error(t('threeMissing'));
     } catch (err) {
       errors.push(`${src}: ${err?.message || err}`);
     }
@@ -64,18 +67,18 @@ function showBootError(err) {
   if (!card) return;
   card.innerHTML = `
     <div class="cat-mark">😿🍪</div>
-    <h1>游戏加载失败</h1>
-    <p>请检查网络连接与游戏资源是否完整，然后刷新页面重试。</p>
-    <details style="text-align:left;font-size:12px;opacity:.72;max-height:150px;overflow:auto"><summary>错误详情</summary><pre style="white-space:pre-wrap">${escapeHTML(err?.message || err)}</pre></details>`;
+    <h1>${t('bootErrorTitle')}</h1>
+    <p>${t('bootErrorText')}</p>
+    <details style="text-align:left;font-size:12px;opacity:.72;max-height:150px;overflow:auto"><summary>${t('errorDetails')}</summary><pre style="white-space:pre-wrap">${escapeHTML(err?.message || err)}</pre></details>`;
 }
 
 const startupTimeout = setTimeout(() => {
-  if (!gameReady) showBootError(new Error('游戏初始化超时，请检查网络后刷新页面重试。'));
+  if (!gameReady) showBootError(new Error(t('startupTimeout')));
 }, 45000);
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=e551cb090f28');
+  await import('./game.bundle.js?v=1bb5f150cffd');
 } catch (err) {
   console.error(err);
   showBootError(err);

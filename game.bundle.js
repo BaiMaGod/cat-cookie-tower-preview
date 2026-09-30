@@ -1,6 +1,150 @@
-/* cat-cookie-tower preview | source 893e2f16 | web e551cb090f28 */
+/* cat-cookie-tower preview | source 06d63940 | web 1bb5f150cffd */
 
-// src/eat-effects.js?v=64d8f0fbc248
+// src/ad-config.mjs?v=1bb5f150cffd
+var AD_CONFIG = Object.freeze({
+  timeoutMs: 12e4,
+  wechat: Object.freeze({ enabled: true, adUnitId: "" }),
+  "taptap-h5": Object.freeze({ enabled: true, adUnitId: "" })
+});
+
+// src/ad-video.mjs?v=1bb5f150cffd
+function createVideoAdapter(api, config) {
+  let ad = null, pending = null, destroyed = false;
+  const supported = () => !destroyed && config.enabled === true && typeof config.adUnitId === "string" && config.adUnitId.trim().length > 0 && typeof api?.createRewardedVideoAd === "function";
+  function finish(status) {
+    if (!pending) return;
+    const request = pending;
+    pending = null;
+    clearTimeout(request.timer);
+    request.resolve({ status });
+  }
+  const onClose = (result) => finish(result?.isEnded === true ? "completed" : "cancelled");
+  const onError = () => finish("failed");
+  function cleanup() {
+    ad?.offClose?.(onClose);
+    ad?.offError?.(onError);
+    ad?.destroy?.();
+    ad = null;
+  }
+  function initialize() {
+    if (ad) return;
+    const instance = api.createRewardedVideoAd({ adUnitId: config.adUnitId.trim() });
+    if (!instance || ["show", "load", "onClose", "onError"].some((name) => typeof instance[name] !== "function")) {
+      instance?.destroy?.();
+      throw new Error("Rewarded video API is incomplete");
+    }
+    ad = instance;
+    ad.onClose(onClose);
+    ad.onError(onError);
+  }
+  return {
+    isAvailable: supported,
+    show() {
+      if (!supported()) return Promise.resolve({ status: "unavailable" });
+      if (pending) return Promise.resolve({ status: "busy" });
+      try {
+        initialize();
+      } catch {
+        cleanup();
+        return Promise.resolve({ status: "failed" });
+      }
+      return new Promise((resolve) => {
+        const request = { resolve, timer: null };
+        pending = request;
+        request.timer = setTimeout(() => {
+          destroyed = true;
+          finish("failed");
+          cleanup();
+        }, config.timeoutMs);
+        Promise.resolve().then(() => ad.show()).catch(async () => {
+          if (pending !== request) return;
+          await ad.load();
+          if (pending === request) await ad.show();
+        }).catch(() => {
+          if (pending === request) finish("failed");
+        });
+      });
+    },
+    destroy() {
+      destroyed = true;
+      finish("cancelled");
+      cleanup();
+    }
+  };
+}
+
+// src/ad-wechat.mjs?v=1bb5f150cffd
+function createWechatAdAdapter(wx, config) {
+  return createVideoAdapter(wx, config);
+}
+
+// src/ad-taptap-h5.mjs?v=1bb5f150cffd
+function createTaptapH5AdAdapter(tap, config) {
+  return createVideoAdapter(tap, config);
+}
+
+// src/ads.mjs?v=1bb5f150cffd
+function createAdService({ runtime = globalThis, platform, api, config = runtime.__CAT_AD_CONFIG__ } = {}) {
+  const detected = platform ?? (runtime.__CAT_PLATFORM__ === "taptap-h5" || runtime.document && runtime.tap ? "taptap-h5" : !runtime.document && runtime.wx && !runtime.tt ? "wechat" : "unsupported");
+  const settings = {
+    ...AD_CONFIG[detected],
+    ...config?.[detected],
+    timeoutMs: config?.timeoutMs ?? AD_CONFIG.timeoutMs
+  };
+  const adapter = detected === "wechat" ? createWechatAdAdapter(api ?? runtime.wx, settings) : detected === "taptap-h5" ? createTaptapH5AdAdapter(api ?? runtime.tap, settings) : null;
+  return {
+    platform: detected,
+    isAvailable: () => adapter?.isAvailable() ?? false,
+    showRewarded: () => adapter?.show() ?? Promise.resolve({ status: "unavailable" }),
+    destroy: () => adapter?.destroy()
+  };
+}
+
+// src/revive.mjs?v=1bb5f150cffd
+function createReviveController({ ads: ads2, canRevive, restore, onChange = () => {
+} }) {
+  let busy = false, status = "", generation = 0;
+  const controller = {
+    get busy() {
+      return busy;
+    },
+    get status() {
+      return status;
+    },
+    isAvailable: () => ads2.isAvailable() && canRevive(),
+    invalidate() {
+      generation++;
+      status = "";
+      onChange();
+    },
+    async request() {
+      if (busy || !controller.isAvailable()) return false;
+      busy = true;
+      status = "loading";
+      const current = generation;
+      onChange();
+      let result;
+      try {
+        result = await ads2.showRewarded();
+      } catch {
+        result = { status: "failed" };
+      }
+      busy = false;
+      if (current !== generation) {
+        onChange();
+        return false;
+      }
+      status = result.status;
+      const restored = result.status === "completed" && canRevive() && restore();
+      if (result.status === "completed" && !restored) status = "failed";
+      onChange();
+      return !!restored;
+    }
+  };
+  return controller;
+}
+
+// src/eat-effects.js?v=1bb5f150cffd
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
 }) {
   const TAU3 = Math.PI * 2;
@@ -214,17 +358,17 @@ function createBurstTexture(THREE6, createCanvas) {
   return texture;
 }
 
-// src/jelly-motion.mjs?v=64d8f0fbc248
+// src/jelly-motion.mjs?v=1bb5f150cffd
 var JELLY_CONTACT_TIME = Math.PI / 20;
 function jellyCompression(time, strength) {
   if (time < 0 || time >= 0.9) return 0;
   return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
 }
 
-// src/game-config.mjs?v=64d8f0fbc248
+// src/game-config.mjs?v=1bb5f150cffd
 var GAME_CONFIG = Object.freeze({
   initialJumps: 5,
-  maxJumps: 10,
+  maxJumps: 5,
   layerGap: 2.2,
   platformRadius: 2.55,
   platformThickness: 0.56,
@@ -244,7 +388,241 @@ var GAME_CONFIG = Object.freeze({
   smashBounceVelocity: 4.15
 });
 
-// src/logic.mjs?v=64d8f0fbc248
+// src/i18n.mjs?v=1bb5f150cffd
+var STORAGE_KEY = "cat-tower.language.v1";
+var STRINGS = {
+  zh: {
+    revive: "看广告复活",
+    adLoading: "广告加载中…",
+    adCancelled: "看完广告才能复活哦",
+    adFailed: "广告暂不可用，请稍后重试",
+    adUnavailable: "当前平台暂不支持广告复活",
+    title: "猫猫果冻塔",
+    labTitle: "果冻材质小样 · 猫猫果冻塔",
+    gameAria: "左右拖动旋转果冻塔",
+    depth: "层数",
+    jumps: "弹跳",
+    score: "分数",
+    combo: "连吃 ×{count}",
+    world: "✦ 果冻乐园 ✦",
+    guideKicker: "小爪爪，准备好了吗？",
+    guideMain: "左右滑动，转动果冻塔",
+    guideDetail: "找准缺口，让猫猫一路往下跳",
+    guideReward: "连吃果冻，补充弹跳",
+    resultKicker: "本 次 冒 险 结 束",
+    starvedTitle: "没力气啦！",
+    starvedText: "少空跳，多追连续缺口，吃掉果冻就能补充弹跳次数。",
+    hazardTitle: "被毒果冻困住啦",
+    hazardText: "黏住了小爪爪，跳不起来了…",
+    resultDepth: "下降层数",
+    resultCombo: "最高连吃",
+    resultScore: "得分",
+    depthValue: "{count} 层",
+    restart: "再来一次",
+    home: "返回首页",
+    homeAria: "猫猫果冻塔首页",
+    homeTitleAlt: "猫猫果冻塔，越掉越甜，越深越惊喜",
+    openSettings: "打开设置",
+    start: "开始游戏",
+    closeSettings: "关闭设置",
+    bestRecord: "历史最高记录",
+    bestScore: "最高分",
+    bestDepth: "最深层数",
+    settingsTitle: "游戏设置",
+    settingsHelp: "左右滑动旋转果冻塔，让胖猫从缺口落下。穿过果冻可以补充弹跳次数，避开粉红色危险果冻。",
+    language: "语言",
+    homeMotion: "首页动画",
+    sound: "游戏音效",
+    done: "完成",
+    loading: "正在进入果冻乐园……",
+    plusOne: "+1 弹跳",
+    smash: "砸碎！",
+    materialGroup: "平台材质",
+    materialSummary: "材质 · {name}",
+    materialLabLink: "打开材质小样 ↗",
+    materialSaved: "已记住选择",
+    materialUrl: "本次选择已保存在页面地址中",
+    presetJelly: "透明果冻",
+    presetJellyDescription: "鲜亮青提 · 软糖猫爪",
+    presetClassic: "原版糖块",
+    presetClassicDescription: "保留原版，随时对照",
+    presetPudding: "奶油布丁",
+    presetPuddingDescription: "柔和奶绿 · 草莓粉",
+    bootErrorTitle: "游戏加载失败",
+    bootErrorText: "请检查网络连接与游戏资源是否完整，然后刷新页面重试。",
+    errorDetails: "错误详情",
+    startupTimeout: "游戏初始化超时，请检查网络后刷新页面重试。",
+    loadTimeout: "{label} 加载超时",
+    threeMissing: "模块缺少 Three.js 核心导出",
+    assetError: "素材加载失败：{url}",
+    labError: "小样加载失败：{error}。请通过 start.bat 启动后重试。",
+    labBack: "‹ 返回游戏",
+    labHeader: "猫猫果冻塔 / 材质小样",
+    labPreviewAria: "果冻材质交互预览",
+    labLive: "实时小样",
+    labDrag: "左右拖动，看看不同角度的反光",
+    labLoading: "正在准备果冻小样……",
+    labReference: "素材参考",
+    labSafe: "绿色果冻",
+    labDanger: "毒果冻",
+    labSafeAlt: "用户提供的绿色果冻参考素材",
+    labDangerAlt: "带奶油白圆角叉号的毒果冻参考素材",
+    labSpecimenAria: "查看的果冻类型",
+    labEyebrow: "甜 品 研 究 室",
+    labHeading1: "一层果冻，",
+    labHeading2: "试试不同口感。",
+    labIntro1: "先看清透感，再试试回弹。",
+    labIntro2: "绿色是安全区，莓红色是毒果冻。",
+    labClean: "干净背景",
+    labSolo: "单块细看",
+    labRotate: "自动旋转",
+    labStack: "多层对照",
+    labGrid: "格纹背景，看清透射",
+    labBounce: "轻轻压一下 · 看回弹",
+    labNoBounce: "毒果冻 · 不回弹",
+    labApply: "应用到游戏 →",
+    labStatus: "小样中的切换不会立即改变游戏。",
+    labNote: "当前展示分块压缩回弹。局部凹陷与毒果冻包裹将在材质确定后继续细化。"
+  },
+  en: {
+    revive: "Watch Ad to Revive",
+    adLoading: "Loading ad…",
+    adCancelled: "Finish the ad to revive",
+    adFailed: "Ad unavailable. Please retry later.",
+    adUnavailable: "Ad revival is unavailable",
+    title: "Jelly Cat Tower",
+    labTitle: "Jelly Lab · Jelly Cat Tower",
+    gameAria: "Drag left or right to rotate the jelly tower",
+    depth: "LEVEL",
+    jumps: "BOUNCE",
+    score: "SCORE",
+    combo: "COMBO ×{count}",
+    world: "✦ JELLY LAND ✦",
+    guideKicker: "Ready, little paws?",
+    guideMain: "Swipe to spin the jelly tower",
+    guideDetail: "Find the gaps and keep the cat falling",
+    guideReward: "Eat jelly to gain a bounce",
+    resultKicker: "ADVENTURE OVER",
+    starvedTitle: "Out of bounces!",
+    starvedText: "Find gaps quickly. Eat jelly to regain bounces.",
+    hazardTitle: "Stuck in poison jelly!",
+    hazardText: "Those sticky paws cannot jump now.",
+    resultDepth: "Levels dropped",
+    resultCombo: "Best combo",
+    resultScore: "Score",
+    depthValue: "{count}",
+    restart: "Play Again",
+    home: "Back to Home",
+    homeAria: "Jelly Cat Tower home screen",
+    homeTitleAlt: "Jelly Cat Tower — drop, bounce and snack",
+    openSettings: "Open settings",
+    start: "Start game",
+    closeSettings: "Close settings",
+    bestRecord: "PERSONAL BEST",
+    bestScore: "BEST SCORE",
+    bestDepth: "DEEPEST",
+    settingsTitle: "Game Settings",
+    settingsHelp: "Swipe left or right to spin the tower. Drop through gaps to regain bounces. Avoid the pink poison jelly.",
+    language: "Language",
+    homeMotion: "Home animation",
+    sound: "Game sounds",
+    done: "Done",
+    loading: "Entering Jelly Land…",
+    plusOne: "+1 BOUNCE",
+    smash: "SMASH!",
+    materialGroup: "Platform material",
+    materialSummary: "Style · {name}",
+    materialLabLink: "Open Jelly Lab ↗",
+    materialSaved: "Selection saved",
+    materialUrl: "Selection stored in the page URL",
+    presetJelly: "Clear Jelly",
+    presetJellyDescription: "Grape glow · candy paws",
+    presetClassic: "Classic Candy",
+    presetClassicDescription: "The original candy look",
+    presetPudding: "Cream Pudding",
+    presetPuddingDescription: "Soft green · strawberry pink",
+    bootErrorTitle: "Game failed to load",
+    bootErrorText: "Check your connection and game files, then reload.",
+    errorDetails: "Error details",
+    startupTimeout: "Game startup timed out. Please reload.",
+    loadTimeout: "{label} timed out",
+    threeMissing: "Three.js core exports are missing",
+    assetError: "Failed to load asset: {url}",
+    labError: "Jelly Lab failed to load: {error}. Please restart the local server and try again.",
+    labBack: "‹ Back to Game",
+    labHeader: "Jelly Cat Tower / Jelly Lab",
+    labPreviewAria: "Interactive jelly material preview",
+    labLive: "Live preview",
+    labDrag: "Drag left or right to see the reflections",
+    labLoading: "Preparing Jelly Lab…",
+    labReference: "Art reference",
+    labSafe: "Safe jelly",
+    labDanger: "Poison jelly",
+    labSafeAlt: "Original safe jelly art reference",
+    labDangerAlt: "Poison jelly art reference with a cream rounded X",
+    labSpecimenAria: "Choose jelly type",
+    labEyebrow: "JELLY LAB",
+    labHeading1: "One jelly layer,",
+    labHeading2: "three sweet styles.",
+    labIntro1: "Explore the shine and test the bounce.",
+    labIntro2: "Green is safe; pink is poison.",
+    labClean: "Clean background",
+    labSolo: "Single piece",
+    labRotate: "Auto rotate",
+    labStack: "Compare layers",
+    labGrid: "Grid background for refraction",
+    labBounce: "Give it a bounce",
+    labNoBounce: "Poison jelly · no bounce",
+    labApply: "Use in Game →",
+    labStatus: "Lab selections do not change the game until applied.",
+    labNote: "This preview shows compression and bounce. Local dents and poison wrapping are still in development."
+  }
+};
+function initialLocale() {
+  const requested = new URLSearchParams(location.search).get("lang");
+  if (requested === "zh" || requested === "en") return requested;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "zh" || stored === "en") return stored;
+  } catch {
+  }
+  return /^zh\b/i.test(navigator.language) ? "zh" : "en";
+}
+var locale = initialLocale();
+function t(key2, values = {}) {
+  const template = STRINGS[locale][key2];
+  if (template === void 0) throw new Error(`Missing ${locale} translation: ${key2}`);
+  return template.replace(/\{(\w+)\}/g, (_, name) => String(values[name] ?? ""));
+}
+function applyTranslations() {
+  document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+  document.title = t(location.pathname.endsWith("material-lab.html") ? "labTitle" : "title");
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  for (const el of document.querySelectorAll("[data-i18n-alt]")) el.alt = t(el.dataset.i18nAlt);
+  for (const el of document.querySelectorAll("[data-i18n-image]")) {
+    el.src = `./assets/home-${el.dataset.i18nImage}${locale === "en" ? "-en" : ""}.png`;
+  }
+  const language = document.getElementById("languageSelect");
+  if (language) language.value = locale;
+  document.dispatchEvent(new CustomEvent("cat-language-change", { detail: { locale } }));
+}
+function setLocale(next) {
+  if (next !== "zh" && next !== "en") throw new Error(`Unsupported language: ${next}`);
+  locale = next;
+  try {
+    localStorage.setItem(STORAGE_KEY, next);
+  } catch {
+  }
+  const url = new URL(location.href);
+  if (url.searchParams.has("lang")) {
+    url.searchParams.set("lang", next);
+    history.replaceState(null, "", url);
+  }
+  applyTranslations();
+}
+
+// src/logic.mjs?v=1bb5f150cffd
 var TAU = Math.PI * 2;
 function normalizeAngle(a) {
   a %= TAU;
@@ -287,7 +665,7 @@ function platformSpans(data, maxSpan = Math.PI / 3) {
   });
 }
 var GameRules = class {
-  constructor({ initialJumps = 5, maxJumps = 10 } = {}) {
+  constructor({ initialJumps = 5, maxJumps = 5 } = {}) {
     this.initialJumps = initialJumps;
     this.maxJumps = maxJumps;
     this.reset();
@@ -328,6 +706,14 @@ var GameRules = class {
   land() {
     if (!this.alive) return;
     this.combo = 0;
+  }
+  revive() {
+    if (this.alive) return false;
+    this.alive = true;
+    this.deathReason = null;
+    this.jumps = Math.min(this.initialJumps, this.maxJumps);
+    this.combo = 0;
+    return true;
   }
   starve() {
     if (!this.alive) return;
@@ -443,7 +829,7 @@ var LayerGenerator = class {
   }
 };
 
-// src/classic-material.js?v=64d8f0fbc248
+// src/classic-material.js?v=1bb5f150cffd
 var THREE = globalThis.__THREE__;
 function createClassicMaterial(danger = false) {
   return new THREE.ShaderMaterial({
@@ -522,18 +908,18 @@ function createClassicMaterial(danger = false) {
   });
 }
 
-// src/candy-jelly-material.js?v=64d8f0fbc248
+// src/candy-jelly-material.js?v=1bb5f150cffd
 var THREE2 = globalThis.__THREE__;
 function createCandyJellyMaterial(config, danger = false) {
   const material = new THREE2.MeshPhysicalMaterial({
-    color: danger ? "#f51775" : "#99fa98",
+    color: danger ? "#f51775" : "#36ef46",
     metalness: 0,
     roughness: 0.012,
     transmission: 0.91,
     thickness: config.platformThickness * 0.55,
     ior: 1.22,
-    attenuationColor: danger ? "#760025" : "#31cc4c",
-    attenuationDistance: danger ? 0.17 : 0.52,
+    attenuationColor: danger ? "#760025" : "#10c535",
+    attenuationDistance: danger ? 0.17 : 0.44,
     clearcoat: 0.8,
     clearcoatRoughness: 0.035,
     envMapIntensity: 1.15
@@ -547,7 +933,7 @@ ${shader.fragmentShader}`;
     shader.fragmentShader = shader.fragmentShader.replace("#include <color_fragment>", `
       #include <color_fragment>
       float centerDepth = (1.0 - pow(abs(vCandy.x), 3.0)) * (1.0 - pow(abs(vCandy.z), 3.0));
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(${danger ? ".62, .30, .68" : ".64, .94, .63"}), centerDepth * .62);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(${danger ? ".62, .30, .68" : ".38, 1.0, .42"}), centerDepth * .62);
     `);
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <transmission_fragment>",
@@ -556,15 +942,22 @@ ${shader.fragmentShader}`;
         "material.thickness = thickness * (.38 + centerDepth * .92);"
       )
     );
+    if (!danger) {
+      shader.fragmentShader = shader.fragmentShader.replace("#include <opaque_fragment>", `
+        float topTint = smoothstep(.55, .95, vCandy.y) * (.45 + centerDepth * .55);
+        outgoingLight *= mix(vec3(1.0), vec3(.15, 1.0, .10), topTint * .9);
+        #include <opaque_fragment>
+      `);
+    }
   };
-  material.customProgramCacheKey = () => `volume-jelly-v2-${danger}`;
+  material.customProgramCacheKey = () => `volume-jelly-v3-${danger}`;
   return material;
 }
 function createAirPocketMaterial(danger = false) {
   return new THREE2.ShaderMaterial({
     uniforms: {
-      body: { value: new THREE2.Color(danger ? "#c50958" : "#65db6f") },
-      lightColor: { value: new THREE2.Color(danger ? "#ff92bc" : "#e5ffc2") }
+      body: { value: new THREE2.Color(danger ? "#c50958" : "#2ed447") },
+      lightColor: { value: new THREE2.Color(danger ? "#ff92bc" : "#e6ffa3") }
     },
     vertexShader: `
       varying vec3 bubbleNormal;
@@ -602,9 +995,10 @@ function createAirPocketMaterial(danger = false) {
   });
 }
 
-// src/platform-materials.js?v=64d8f0fbc248
+// src/platform-materials.js?v=1bb5f150cffd
 var THREE3 = globalThis.__THREE__;
-var STORAGE_KEY = "cat-tower.platform-material.v1";
+var STORAGE_KEY2 = "cat-tower.platform-material.v1";
+var FIXED_JELLY = globalThis.__CAT_FIXED_JELLY__ === true;
 var DEFAULT_PLATFORM_PRESET = "jelly";
 var PLATFORM_PRESETS = Object.freeze([
   {
@@ -615,6 +1009,7 @@ var PLATFORM_PRESETS = Object.freeze([
     rim: false,
     surfaceBubbles: false,
     flatPaw: false,
+    flatDangerMark: true,
     candyDetails: true,
     rebound: 0.16,
     create: (config) => ({ safe: createCandyJellyMaterial(config), danger: createCandyJellyMaterial(config, true) })
@@ -627,7 +1022,7 @@ var PLATFORM_PRESETS = Object.freeze([
     rim: true,
     surfaceBubbles: true,
     flatPaw: true,
-    flatSkull: true,
+    flatDangerMark: true,
     rebound: 0.035,
     create: () => ({ safe: createClassicMaterial(), danger: createClassicMaterial(true) })
   },
@@ -639,7 +1034,7 @@ var PLATFORM_PRESETS = Object.freeze([
     rim: false,
     surfaceBubbles: false,
     flatPaw: true,
-    flatSkull: true,
+    flatDangerMark: true,
     rebound: 0.1,
     create: () => {
       const base = { roughness: 0.3, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.16, envMapIntensity: 0.7 };
@@ -651,8 +1046,9 @@ var PLATFORM_PRESETS = Object.freeze([
   }
 ]);
 function readPlatformPreset(fallback = DEFAULT_PLATFORM_PRESET) {
+  if (FIXED_JELLY) return DEFAULT_PLATFORM_PRESET;
   try {
-    const id = localStorage.getItem(STORAGE_KEY);
+    const id = localStorage.getItem(STORAGE_KEY2);
     return PLATFORM_PRESETS.some((p) => p.id === id) ? id : fallback;
   } catch {
     return fallback;
@@ -661,7 +1057,7 @@ function readPlatformPreset(fallback = DEFAULT_PLATFORM_PRESET) {
 function savePlatformPreset(id) {
   if (!PLATFORM_PRESETS.some((p) => p.id === id)) throw new Error(`Unknown platform material: ${id}`);
   try {
-    localStorage.setItem(STORAGE_KEY, id);
+    localStorage.setItem(STORAGE_KEY2, id);
     return true;
   } catch {
     return false;
@@ -695,6 +1091,7 @@ function createPlatformMaterials(config) {
     },
     apply,
     select(id, root) {
+      if (FIXED_JELLY) id = DEFAULT_PLATFORM_PRESET;
       const next = PLATFORM_PRESETS.find((p) => p.id === id);
       if (!next) throw new Error(`Unknown platform material: ${id}`);
       selected = next;
@@ -711,7 +1108,35 @@ function createPlatformMaterials(config) {
   };
 }
 
-// src/visuals.js?v=64d8f0fbc248
+// src/game-assets.mjs?v=1bb5f150cffd
+var GAME_ASSETS = Object.freeze({
+  world: "./assets/world-hd.png",
+  column: "./assets/column-hd.png",
+  idle: "./assets/cat-idle-game.png",
+  fall: "./assets/cat-fall-game.png",
+  eat: "./assets/cat-eat-game.png",
+  fail: "./assets/cat-fail-game.png",
+  hud: "./assets/ui-hud-game.png",
+  depth: "./assets/ui-depth-game.png",
+  bounce: "./assets/ui-bounce-game.png",
+  score: "./assets/star-game.png",
+  result: "./assets/ui-results-game.png",
+  homeTitle: "./assets/home-title.png",
+  homeStart: "./assets/home-start.png",
+  homeSettings: "./assets/home-settings.png",
+  homeJellySafe: "./assets/home-jelly-safe.png",
+  homeJellyDanger: "./assets/home-jelly-danger.png",
+  dangerMark: "./assets/jelly-danger-mark.png"
+});
+var CAT_SOURCES = Object.freeze({
+  idle: GAME_ASSETS.idle,
+  fall: GAME_ASSETS.fall,
+  eat: GAME_ASSETS.eat,
+  squash: GAME_ASSETS.idle,
+  fail: GAME_ASSETS.fail
+});
+
+// src/visuals.js?v=1bb5f150cffd
 var THREE4 = globalThis.__THREE__;
 var TAU2 = Math.PI * 2;
 function canvasTexture(width, height, paint) {
@@ -766,13 +1191,13 @@ function createArt(renderer2, scene2, config, loadTexture) {
     redBubble: physical(16736405, { roughness: 0.08, envMapIntensity: 1.8 }),
     rim: new THREE4.MeshBasicMaterial({ color: 14679996, transparent: true, opacity: 0.66 }),
     redRim: new THREE4.MeshBasicMaterial({ color: 16755149, transparent: true, opacity: 0.68 }),
-    crumb: physical(7335062)
+    crumb: physical(5565240)
   };
   const inclusions = { safe: createAirPocketMaterial(false), danger: createAirPocketMaterial(true) };
   const pawTexture = canvasTexture(256, 256, (ctx) => {
     const gradient = ctx.createLinearGradient(0, 55, 0, 210);
-    gradient.addColorStop(0, "#e1ffd6");
-    gradient.addColorStop(1, "#82e9a0");
+    gradient.addColorStop(0, "#eaffbc");
+    gradient.addColorStop(1, "#86ed5a");
     ctx.fillStyle = gradient;
     ctx.strokeStyle = "#eaffdf";
     ctx.lineWidth = 5;
@@ -783,45 +1208,29 @@ function createArt(renderer2, scene2, config, loadTexture) {
       ctx.stroke();
     }
   });
-  const skullTexture = canvasTexture(256, 256, (ctx) => {
-    ctx.fillStyle = "#ffbed6";
-    ctx.strokeStyle = "#ffe7ed";
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.ellipse(128, 106, 72, 57, 0, 0, TAU2);
-    ctx.fill();
-    ctx.stroke();
-    for (const x of [92, 128, 164]) {
-      ctx.beginPath();
-      ctx.roundRect(x - 11, 139, 22, 43, 10);
-      ctx.fill();
-    }
-    ctx.fillStyle = "#ad1755";
-    for (const x of [99, 157]) {
-      ctx.beginPath();
-      ctx.ellipse(x, 109, 20, 23, 0, 0, TAU2);
-      ctx.fill();
-    }
-    ctx.beginPath();
-    ctx.moveTo(128, 131);
-    ctx.lineTo(117, 145);
-    ctx.lineTo(139, 145);
-    ctx.fill();
-  });
+  const dangerMarkTexture = loadTexture(GAME_ASSETS.dangerMark);
   const markMaterial = (map) => new THREE4.MeshBasicMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
   const pawMat = markMaterial(pawTexture);
-  const skullMat = markMaterial(skullTexture);
+  const dangerMarkMat = new THREE4.MeshBasicMaterial({
+    map: dangerMarkTexture,
+    transparent: true,
+    alphaTest: 0.025,
+    depthWrite: false,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1
+  });
   const sphere = new THREE4.SphereGeometry(1, 12, 8);
   const markGeo = new THREE4.PlaneGeometry(0.66, 0.66);
   const dummy = new THREE4.Object3D();
   const pawSphere = new THREE4.SphereGeometry(1, 24, 16);
-  const pawReliefMaterial = physical("#82ec9a", {
+  const pawReliefMaterial = physical("#8aef64", {
     roughness: 0.1,
     transmission: 0.55,
     thickness: 0.13,
     ior: 1.36,
     envMapIntensity: 1,
-    attenuationColor: "#49e076",
+    attenuationColor: "#4bda2b",
     attenuationDistance: 0.8
   });
   const padShape = new THREE4.Shape();
@@ -872,40 +1281,6 @@ function createArt(renderer2, scene2, config, loadTexture) {
   padGeometry.dispose();
   pawSphere.dispose();
   pawReliefGeometry.computeBoundingSphere();
-  const skullShape = new THREE4.Shape();
-  skullShape.moveTo(-0.2, -0.08);
-  skullShape.bezierCurveTo(-0.38, 0.04, -0.29, 0.27, 0, 0.27);
-  skullShape.bezierCurveTo(0.29, 0.27, 0.38, 0.04, 0.2, -0.08);
-  skullShape.lineTo(0.2, -0.2);
-  skullShape.quadraticCurveTo(0.15, -0.26, 0.1, -0.2);
-  skullShape.lineTo(0.08, -0.14);
-  skullShape.lineTo(0.06, -0.23);
-  skullShape.quadraticCurveTo(0, -0.28, -0.06, -0.23);
-  skullShape.lineTo(-0.08, -0.14);
-  skullShape.lineTo(-0.1, -0.2);
-  skullShape.quadraticCurveTo(-0.15, -0.26, -0.2, -0.2);
-  skullShape.closePath();
-  for (const x of [-0.12, 0.12]) {
-    const eye = new THREE4.Path();
-    eye.absellipse(x, 0.08, 0.075, 0.065, 0, TAU2, true);
-    skullShape.holes.push(eye);
-  }
-  const nose = new THREE4.Path();
-  nose.moveTo(0, 5e-3);
-  nose.lineTo(0.035, -0.055);
-  nose.lineTo(-0.035, -0.055);
-  nose.closePath();
-  skullShape.holes.push(nose);
-  const skullReliefGeometry = new THREE4.ExtrudeGeometry(skullShape, {
-    depth: 0.035,
-    bevelEnabled: true,
-    bevelThickness: 0.02,
-    bevelSize: 0.013,
-    bevelSegments: 4,
-    curveSegments: 18
-  });
-  skullReliefGeometry.rotateX(-Math.PI / 2);
-  const skullReliefMaterial = physical("#ff5488", { roughness: 0.15, envMapIntensity: 0.85 });
   const glintTexture = canvasTexture(128, 128, (ctx) => {
     const glow = ctx.createRadialGradient(64, 64, 2, 64, 64, 61);
     glow.addColorStop(0, "#ffffdf");
@@ -1025,24 +1400,15 @@ function createArt(renderer2, scene2, config, loadTexture) {
       rim.userData.platformDecoration = "rim";
       part.add(rim);
       if (span.width > 0.22) {
-        const mark = new THREE4.Mesh(markGeo, danger ? skullMat : pawMat);
+        const mark = new THREE4.Mesh(markGeo, danger ? dangerMarkMat : pawMat);
         const a = span.start + span.width / 2;
         const r = (config.pillarRadius + config.platformRadius) / 2;
-        mark.rotation.set(-Math.PI / 2, 0, -a);
+        mark.rotation.set(-Math.PI / 2, 0, danger ? -a + Math.PI / 2 : -a);
         mark.position.set(Math.sin(a) * r, config.platformThickness / 2 + 8e-3, Math.cos(a) * r);
         const scale = Math.min(1, span.width / 0.42);
         mark.scale.setScalar(scale);
-        mark.userData.platformDecoration = danger ? "flatSkull" : "flatPaw";
+        mark.userData.platformDecoration = danger ? "flatDangerMark" : "flatPaw";
         part.add(mark);
-        if (danger) {
-          const relief = new THREE4.Mesh(skullReliefGeometry, skullReliefMaterial);
-          relief.position.copy(mark.position);
-          relief.position.y += 0.02;
-          relief.rotation.y = a;
-          relief.scale.setScalar(Math.min(1.3, span.width / 0.55));
-          relief.userData.platformDecoration = "candyDetails";
-          part.add(relief);
-        }
         if (!danger) {
           const relief = new THREE4.Mesh(pawReliefGeometry, pawReliefMaterial);
           relief.userData.platformDecoration = "candyDetails";
@@ -1184,34 +1550,7 @@ function setVisibleTowerLayers(platforms, columns, focusY, reach) {
   }
 }
 
-// src/game-assets.mjs?v=64d8f0fbc248
-var GAME_ASSETS = Object.freeze({
-  world: "./assets/world-hd.png",
-  column: "./assets/column-hd.png",
-  idle: "./assets/cat-idle-game.png",
-  fall: "./assets/cat-fall-game.png",
-  eat: "./assets/cat-eat-game.png",
-  fail: "./assets/cat-fail-game.png",
-  hud: "./assets/ui-hud-game.png",
-  depth: "./assets/ui-depth-game.png",
-  bounce: "./assets/ui-bounce-game.png",
-  score: "./assets/star-game.png",
-  result: "./assets/ui-results-game.png",
-  homeTitle: "./assets/home-title.png",
-  homeStart: "./assets/home-start.png",
-  homeSettings: "./assets/home-settings.png",
-  homeJellySafe: "./assets/home-jelly-safe.png",
-  homeJellyDanger: "./assets/home-jelly-danger.png"
-});
-var CAT_SOURCES = Object.freeze({
-  idle: GAME_ASSETS.idle,
-  fall: GAME_ASSETS.fall,
-  eat: GAME_ASSETS.eat,
-  squash: GAME_ASSETS.idle,
-  fail: GAME_ASSETS.fail
-});
-
-// src/world-background.js?v=64d8f0fbc248
+// src/world-background.js?v=1bb5f150cffd
 function createWorldBackground(scene2, loadTexture) {
   const texture = loadTexture(GAME_ASSETS.world);
   scene2.background = texture;
@@ -1227,8 +1566,10 @@ function createWorldBackground(scene2, loadTexture) {
   };
 }
 
-// src/material-switcher.js?v=64d8f0fbc248
+// src/material-switcher.js?v=1bb5f150cffd
+var presetName = (id) => t(`preset${id[0].toUpperCase()}${id.slice(1)}`);
 function mountMaterialSwitcher(art2, root, parent) {
+  if (globalThis.__CAT_FIXED_JELLY__ === true) return;
   const panel = document.createElement("details");
   panel.className = "material-switcher";
   const summary = document.createElement("summary");
@@ -1236,41 +1577,47 @@ function mountMaterialSwitcher(art2, root, parent) {
   const options = document.createElement("div");
   options.className = "material-menu";
   options.setAttribute("role", "group");
-  options.setAttribute("aria-label", "平台材质");
+  options.setAttribute("aria-label", t("materialGroup"));
   panel.appendChild(options);
+  let saveState = null;
   function refresh() {
-    summary.textContent = `材质 · ${art2.platformMaterials.preset.label}`;
+    summary.textContent = t("materialSummary", { name: presetName(art2.platformMaterials.id) });
+    options.setAttribute("aria-label", t("materialGroup"));
+    if (saveState !== null) summary.title = t(saveState ? "materialSaved" : "materialUrl");
     for (const button of options.querySelectorAll("button")) {
+      button.textContent = presetName(button.dataset.preset);
       button.setAttribute("aria-pressed", String(button.dataset.preset === art2.platformMaterials.id));
     }
+    link.textContent = t("materialLabLink");
   }
   const requested = new URLSearchParams(location.search).get("material");
   if (PLATFORM_PRESETS.some((p) => p.id === requested)) art2.platformMaterials.select(requested, root);
   for (const preset of PLATFORM_PRESETS) {
     const button = document.createElement("button");
     button.dataset.preset = preset.id;
-    button.textContent = preset.label;
+    button.textContent = presetName(preset.id);
     button.addEventListener("click", () => {
       art2.platformMaterials.select(preset.id, root);
       const saved = savePlatformPreset(preset.id);
+      saveState = saved;
       const url = new URL(location.href);
       url.searchParams.set("material", preset.id);
       history.replaceState(null, "", url);
       refresh();
-      summary.title = saved ? "已记住选择" : "本次选择已保存在页面地址中";
       panel.open = false;
     });
     options.appendChild(button);
   }
   const link = document.createElement("a");
   link.href = "./material-lab.html";
-  link.textContent = "打开材质小样 ↗";
+  link.textContent = t("materialLabLink");
   options.appendChild(link);
   refresh();
+  document.addEventListener("cat-language-change", refresh);
   parent.appendChild(panel);
 }
 
-// src/game-sounds.mjs?v=64d8f0fbc248
+// src/game-sounds.mjs?v=1bb5f150cffd
 var GAME_SOUNDS = Object.freeze(Object.fromEntries(
   ["jump", "land", "eat", "combo", "low", "hazard", "starved", "smash"].map((name) => [name, `./assets/sfx/${name}.wav`])
 ));
@@ -1321,11 +1668,10 @@ function createWebSounds() {
 
 // src/main.js
 var THREE5 = globalThis.__THREE__;
-if (!THREE5) throw new Error("Three.js 未加载");
+if (!THREE5) throw new Error(t("threeMissing"));
 var gameEl = document.getElementById("game");
 var frameEl = document.getElementById("phoneFrame");
 var debugMode = new URLSearchParams(location.search).has("debug");
-var loadingEl = document.getElementById("loading");
 var homeScreen = document.getElementById("homeScreen");
 var settingsPanel = document.getElementById("settingsPanel");
 var settingsBtn = document.getElementById("settingsBtn");
@@ -1346,8 +1692,41 @@ var hud = {
   finalDepth: document.getElementById("finalDepth"),
   finalCombo: document.getElementById("finalCombo"),
   finalScore: document.getElementById("finalScore"),
-  restartBtn: document.getElementById("restartBtn")
+  restartBtn: document.getElementById("restartBtn"),
+  reviveBtn: document.getElementById("reviveBtn"),
+  adStatus: document.getElementById("adStatus")
 };
+var BEST_RECORD_KEY = "cat-tower.best-record.v1";
+var homeRecordScore = document.getElementById("homeRecordScore");
+var homeRecordDepth = document.getElementById("homeRecordDepth");
+function loadBestRecord() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BEST_RECORD_KEY));
+    return {
+      score: Number.isSafeInteger(saved?.score) && saved.score >= 0 ? saved.score : 0,
+      depth: Number.isSafeInteger(saved?.depth) && saved.depth >= 0 ? saved.depth : 0
+    };
+  } catch {
+    return { score: 0, depth: 0 };
+  }
+}
+var bestRecord = loadBestRecord();
+function renderBestRecord() {
+  homeRecordScore.textContent = String(bestRecord.score);
+  homeRecordDepth.textContent = String(bestRecord.depth);
+}
+function updateBestRecord() {
+  const score = Math.max(bestRecord.score, rules.score);
+  const depth = Math.max(bestRecord.depth, rules.depth);
+  if (score === bestRecord.score && depth === bestRecord.depth) return;
+  bestRecord = { score, depth };
+  renderBestRecord();
+  try {
+    localStorage.setItem(BEST_RECORD_KEY, JSON.stringify(bestRecord));
+  } catch {
+  }
+}
+renderBestRecord();
 var scene = new THREE5.Scene();
 scene.background = null;
 scene.fog = new THREE5.Fog(15334143, 28, 52);
@@ -1385,7 +1764,7 @@ var artLoads = [];
 function loadArtTexture(url) {
   let tex;
   artLoads.push(new Promise((resolve, reject) => {
-    tex = textureLoader.load(url, resolve, void 0, () => reject(new Error(`素材加载失败：${url}`)));
+    tex = textureLoader.load(url, resolve, void 0, () => reject(new Error(t("assetError", { url }))));
   }));
   tex.colorSpace = THREE5.SRGBColorSpace;
   tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -1529,12 +1908,12 @@ function localAngleUnderCat() {
   return normalizeAngle(-towerRoot.rotation.y);
 }
 function getCatRadius() {
-  const t = THREE5.MathUtils.clamp(rules.jumps / GAME_CONFIG.maxJumps, 0, 1);
-  return THREE5.MathUtils.lerp(GAME_CONFIG.catRadius * 0.83, GAME_CONFIG.catRadiusAtMax, t);
+  const t2 = THREE5.MathUtils.clamp(rules.jumps / GAME_CONFIG.maxJumps, 0, 1);
+  return THREE5.MathUtils.lerp(GAME_CONFIG.catRadius * 0.83, GAME_CONFIG.catRadiusAtMax, t2);
 }
 function targetCatScale() {
-  const t = THREE5.MathUtils.clamp(rules.jumps / GAME_CONFIG.maxJumps, 0, 1);
-  return THREE5.MathUtils.lerp(0.68, 0.98, t);
+  const t2 = THREE5.MathUtils.clamp(rules.jumps / GAME_CONFIG.maxJumps, 0, 1);
+  return THREE5.MathUtils.lerp(0.68, 0.98, t2);
 }
 function layerTopY(layer) {
   const part = partUnderCat(layer);
@@ -1567,7 +1946,9 @@ function platformStatus(layer) {
 }
 function showCombo(n) {
   if (n < 2) return;
-  hud.combo.textContent = `连吃 ×${n}`;
+  hud.combo.dataset.kind = "combo";
+  hud.combo.dataset.count = String(n);
+  hud.combo.textContent = t("combo", { count: n });
   hud.combo.classList.remove("show");
   void hud.combo.offsetWidth;
   hud.combo.classList.add("show");
@@ -1575,12 +1956,14 @@ function showCombo(n) {
 function spawnPlusOne() {
   const el = document.createElement("div");
   el.className = "plus-one";
-  el.textContent = "+1 弹跳";
+  el.textContent = t("plusOne");
+  el.dataset.i18n = "plusOne";
   frameEl.appendChild(el);
   el.addEventListener("animationend", () => el.remove(), { once: true });
 }
 var pulse = 0;
 var squash = 0;
+var displayedCatScale = targetCatScale();
 var deadShown = false;
 var gameOverTimer;
 var poisonSink = null;
@@ -1683,13 +2066,13 @@ function updateHomeDemoPoison(dt) {
   }
   homeDemo.poisonHold += dt;
   poisonSink.elapsed = Math.min(0.85, poisonSink.elapsed + dt);
-  const t = poisonSink.elapsed / 0.85;
-  const eased = t * t * (3 - 2 * t);
+  const t2 = poisonSink.elapsed / 0.85;
+  const eased = t2 * t2 * (3 - 2 * t2);
   cat.root.position.y = poisonSink.startY - poisonSink.depth * eased;
   poisonSink.contact.scale.setScalar(0.8 + 0.2 * eased);
   cat.visual.material.rotation = -0.1;
   cat.shadow.visible = false;
-  setCatTexture(t >= 1 ? "fail" : "fall");
+  setCatTexture(t2 >= 1 ? "fail" : "fall");
   if (homeDemo.poisonHold >= 1.65) resetHomeDemoScene();
 }
 function updateHomeDemo(dt) {
@@ -1754,7 +2137,7 @@ function updateHomeDemo(dt) {
   const isFalling = homeDemo.mode !== "landed" && vy < -0.8;
   const base = targetCatScale();
   pulse *= Math.pow(0.035, dt);
-  squash *= Math.pow(0.0025, dt);
+  squash *= Math.pow(25e-4, dt);
   cat.eatTimer = Math.max(0, cat.eatTimer - dt);
   const sx = base * (1 + pulse + squash * 0.12) * (isFalling ? 0.96 : 1);
   const sy = base * (1 + pulse * 0.55 - squash * 0.18) * (isFalling ? 1.04 : 1);
@@ -1763,7 +2146,7 @@ function updateHomeDemo(dt) {
   cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.5 * sy, follow);
   cat.visual.scale.z = 1;
   cat.visual.position.y = -radius + 0.08;
-  cat.visual.material.rotation = isFalling ? Math.sin(performance.now() * 0.008) * 0.035 : 0;
+  cat.visual.material.rotation = isFalling ? Math.sin(performance.now() * 8e-3) * 0.035 : 0;
   cat.visual.rotation.z = THREE5.MathUtils.lerp(
     cat.visual.rotation.z,
     isFalling ? Math.sin(performance.now() * 0.01) * 0.035 : 0,
@@ -1775,7 +2158,6 @@ function updateHomeDemo(dt) {
   else if (isFalling) setCatTexture("fall");
   else setCatTexture("idle");
 }
-
 function updateHUD() {
   hud.depth.textContent = String(rules.depth);
   hud.jumps.textContent = `× ${rules.jumps}`;
@@ -1835,7 +2217,8 @@ function beginEat(layer) {
   sounds.play("eat");
   if (rules.combo === 3 || rules.combo === GAME_CONFIG.breakthroughCombo) sounds.play("combo");
   if (rules.combo === GAME_CONFIG.breakthroughCombo) smashReady = true;
-  pulse = Math.min(0.22, pulse + 0.1);
+  pulse = Math.min(0.1, pulse + 0.035);
+  updateBestRecord();
   spawnPlusOne();
   showCombo(rules.combo);
   updateHUD();
@@ -1869,14 +2252,16 @@ function resolveLandingSmash() {
   layer.eaten = true;
   sounds.play("smash");
   rules.passLayer();
+  updateBestRecord();
   spawnPlusOne();
   spawnEatFragments(layer);
   disposePlatform(layer.group);
   layers.delete(layer.index);
   rules.land();
-  pulse = Math.min(0.36, pulse + 0.22);
+  pulse = Math.min(0.16, pulse + 0.08);
   squash = 0.75;
-  hud.combo.textContent = "砸碎！";
+  hud.combo.dataset.kind = "smash";
+  hud.combo.textContent = t("smash");
   hud.combo.classList.remove("show");
   void hud.combo.offsetWidth;
   hud.combo.classList.add("show");
@@ -1903,26 +2288,80 @@ function hitHazard(layer) {
   squash = 0;
   updateHUD();
 }
+var ads = createAdService();
+var revival = createReviveController({
+  ads,
+  canRevive: () => !rules.alive && deadShown && homeScreen.hidden,
+  restore: reviveGame,
+  onChange: () => {
+    if (hud.reviveBtn) renderRevive();
+  }
+});
+function renderRevive() {
+  const available = revival.isAvailable();
+  hud.reviveBtn.hidden = !available;
+  hud.reviveBtn.disabled = revival.busy;
+  hud.reviveBtn.textContent = t(revival.busy ? "adLoading" : "revive");
+  hud.restartBtn.disabled = revival.busy;
+  document.getElementById("homeBtn").disabled = revival.busy;
+  const message = { loading: "adLoading", cancelled: "adCancelled", failed: "adFailed", unavailable: "adUnavailable" }[revival.status];
+  hud.adStatus.textContent = available && message ? t(message) : "";
+  hud.gameOver.classList.toggle("with-revive", available);
+}
+function reviveGame() {
+  const layer = layers.get(rules.depth);
+  const safe = layer && platformSpans(layer.data).find((span) => span.type === "safe");
+  if (!safe || !rules.revive()) return false;
+  clearTimeout(gameOverTimer);
+  poisonSink?.contact.removeFromParent();
+  poisonSink = null;
+  towerRoot.rotation.y = -(safe.start + safe.width / 2);
+  towerRoot.updateMatrixWorld(true);
+  landedLayer = layer;
+  state = "landed";
+  landingTimer = 1;
+  vy = 0;
+  deadShown = false;
+  dragging = false;
+  smashReady = false;
+  smashLayer = null;
+  smashTimer = 0;
+  pulse = squash = cat.eatTimer = 0;
+  cat.root.position.y = layerTopY(layer) + getCatRadius();
+  cat.visual.material.rotation = 0;
+  setCatTexture("idle");
+  hud.gameOver.classList.add("hidden");
+  hud.combo.classList.remove("show");
+  updateHUD();
+  scheduleFrame(true);
+  return true;
+}
+function renderGameOver(reason) {
+  renderRevive();
+  hud.finalDepth.textContent = t("depthValue", { count: rules.depth });
+  hud.finalCombo.textContent = `×${rules.bestCombo}`;
+  hud.finalScore.textContent = String(rules.score);
+  if (reason === "hazard") {
+    hud.deathEmoji.textContent = "🙀";
+    hud.deathTitle.textContent = t("hazardTitle");
+    hud.deathText.textContent = t("hazardText");
+  } else {
+    hud.deathEmoji.textContent = "😿";
+    hud.deathTitle.textContent = t("starvedTitle");
+    hud.deathText.textContent = t("starvedText");
+  }
+}
 function showGameOver(reason) {
   if (deadShown) return;
   deadShown = true;
+  hud.gameOver.dataset.reason = reason;
   gameOverTimer = setTimeout(() => {
-    hud.finalDepth.textContent = `${rules.depth} 层`;
-    hud.finalCombo.textContent = `×${rules.bestCombo}`;
-    hud.finalScore.textContent = String(rules.score);
-    if (reason === "hazard") {
-      hud.deathEmoji.textContent = "🙀";
-      hud.deathTitle.textContent = "被毒果冻困住啦";
-      hud.deathText.textContent = "黏住了小爪爪，跳不起来了…";
-    } else {
-      hud.deathEmoji.textContent = "😿";
-      hud.deathTitle.textContent = "没力气啦！";
-      hud.deathText.textContent = "少空跳，多追连续缺口，吃掉果冻就能补充弹跳次数。";
-    }
+    renderGameOver(reason);
     hud.gameOver.classList.remove("hidden");
   }, reason === "hazard" ? 500 : 560);
 }
 function resetGame() {
+  revival.invalidate();
   clearTimeout(gameOverTimer);
   if (poisonSink) {
     poisonSink.contact.removeFromParent();
@@ -1939,7 +2378,8 @@ function resetGame() {
   towerRoot.rotation.y = 0;
   cat.root.position.set(0, GAME_CONFIG.platformThickness / 2 + getCatRadius(), GAME_CONFIG.catZ);
   cat.root.rotation.set(0, 0, 0);
-  cat.visual.scale.setScalar(targetCatScale());
+  displayedCatScale = targetCatScale();
+  cat.visual.scale.set(1.5 * displayedCatScale, 1.5 * displayedCatScale, 1);
   cat.eatTimer = 0;
   setCatTexture("idle");
   deadShown = false;
@@ -1963,6 +2403,15 @@ function resetGame() {
   scheduleFrame(true);
 }
 hud.restartBtn.addEventListener("click", resetGame);
+hud.reviveBtn.addEventListener("click", () => {
+  void revival.request();
+});
+document.getElementById("languageSelect").addEventListener("change", (event) => setLocale(event.target.value));
+document.addEventListener("cat-language-change", () => {
+  if (hud.combo.dataset.kind === "combo") hud.combo.textContent = t("combo", { count: hud.combo.dataset.count });
+  else if (hud.combo.dataset.kind === "smash") hud.combo.textContent = t("smash");
+  if (!hud.gameOver.classList.contains("hidden")) renderGameOver(hud.gameOver.dataset.reason);
+});
 document.getElementById("soundToggle").addEventListener("change", (event) => {
   sounds.setEnabled(event.target.checked);
 });
@@ -1999,6 +2448,7 @@ document.getElementById("startBtn").addEventListener("click", () => {
   resetGame();
 });
 document.getElementById("homeBtn").addEventListener("click", () => {
+  revival.invalidate();
   hud.gameOver.classList.add("hidden");
   homeScreen.hidden = false;
   frameEl.classList.add("at-home");
@@ -2067,25 +2517,29 @@ function updateCat(dt) {
     collisionStep(prevY, cat.root.position.y);
   } else if (state === "hazardSinking") {
     poisonSink.elapsed = Math.min(0.85, poisonSink.elapsed + dt);
-    const t = poisonSink.elapsed / 0.85;
-    const eased = t * t * (3 - 2 * t);
+    const t2 = poisonSink.elapsed / 0.85;
+    const eased = t2 * t2 * (3 - 2 * t2);
     cat.root.position.y = poisonSink.startY - poisonSink.depth * eased;
     poisonSink.contact.scale.setScalar(0.8 + 0.2 * eased);
     vy = 0;
-    if (t >= 1) {
+    if (t2 >= 1) {
       state = "hazardStuck";
       showGameOver("hazard");
     }
   }
   const isFalling = state === "bouncing" && vy < -0.8;
-  const base = targetCatScale();
+  const targetBaseScale = targetCatScale();
+  const sizeFollow = dt ? 1 - Math.exp(-(targetBaseScale > displayedCatScale ? 2.4 : 14) * dt) : 1;
+  displayedCatScale = THREE5.MathUtils.lerp(displayedCatScale, targetBaseScale, sizeFollow);
+  const base = displayedCatScale;
   pulse *= Math.pow(0.035, dt);
   squash *= Math.pow(25e-4, dt);
   cat.eatTimer = Math.max(0, cat.eatTimer - dt);
   const sx = base * (1 + pulse + squash * 0.12) * (isFalling ? 0.96 : 1);
   const sy = base * (1 + pulse * 0.55 - squash * 0.18) * (isFalling ? 1.04 : 1);
-  cat.visual.scale.x = THREE5.MathUtils.lerp(cat.visual.scale.x, 1.50 * sx, dt ? 1 - Math.exp(-14 * dt) : 1);
-  cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.50 * sy, dt ? 1 - Math.exp(-14 * dt) : 1);
+  const shapeFollow = dt ? 1 - Math.exp(-14 * dt) : 1;
+  cat.visual.scale.x = THREE5.MathUtils.lerp(cat.visual.scale.x, 1.5 * sx, shapeFollow);
+  cat.visual.scale.y = THREE5.MathUtils.lerp(cat.visual.scale.y, 1.5 * sy, shapeFollow);
   cat.visual.scale.z = 1;
   cat.visual.position.y = -getCatRadius() + 0.08;
   cat.visual.material.rotation = isFalling ? Math.sin(performance.now() * 8e-3) * 0.035 : 0;
@@ -2218,7 +2672,7 @@ globalThis.CatAndroidLifecycle = {
 };
 function frame(now) {
   frameHandle = null;
-  const dt = Math.min((now - last) / 1e3, 1 / 30);
+  const dt = Math.min(Math.max((now - last) / 1e3, 0), 1 / 30);
   last = now;
   ensureLayers();
   ensurePillarModules();
