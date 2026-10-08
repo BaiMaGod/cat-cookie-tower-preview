@@ -1,0 +1,77 @@
+name: Preview quality smoke test
+on:
+  push:
+    branches: [quality-preview-release-20261008]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up Chrome and fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          python -m pip install playwright
+      - name: Open and play in real Chrome
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/cat-preview-http.log 2>&1 &
+          python - <<'PY'
+          import json, os
+          from playwright.sync_api import sync_playwright
+          os.makedirs('qa-screens',exist_ok=True)
+          errors=[]
+          with sync_playwright() as pw:
+            browser=pw.chromium.launch(channel='chrome',headless=True,args=['--enable-unsafe-swiftshader','--use-angle=swiftshader'])
+            page=browser.new_page(viewport={'width':390,'height':844},device_scale_factor=1,locale='zh-CN')
+            page.on('pageerror',lambda e: errors.append(str(e)))
+            page.on('response',lambda r: errors.append(f'HTTP {r.status}: {r.url}') if r.status >= 400 else None)
+            page.goto('http://127.0.0.1:8765/?debug',wait_until='domcontentloaded',timeout=25000)
+            page.wait_for_function('!!window.__GAME_DEBUG__',timeout=45000)
+            page.wait_for_function("document.querySelector('#loading').classList.contains('hidden')",timeout=15000)
+            page.wait_for_timeout(600)
+            print('HOME',json.dumps(page.evaluate('__GAME_DEBUG__.snapshot()'),ensure_ascii=False))
+            assert page.locator('#homeScreen').is_visible()
+            assert page.locator('#startBtn').is_visible()
+            imagecheck=page.evaluate("""() => Array.from(document.querySelectorAll('img')).filter(i=> {
+                const s=getComputedStyle(i),r=i.getBoundingClientRect();
+                return s.display!=='none'&&r.width>2&&r.height>2;
+              }).map(i=>[i.getAttribute('src'),i.naturalWidth,i.naturalHeight])""")
+            broken=[i for i in imagecheck if i[1]<=0 or i[2]<=0]
+            assert not broken,f'Broken images: {broken}'
+            page.evaluate('CatAndroidLifecycle.setActive(false)')
+            page.screenshot(path='qa-screens/home-390.png',animations='disabled',timeout=15000)
+            page.evaluate('CatAndroidLifecycle.setActive(true)')
+            page.locator('#settingsBtn').click()
+            assert page.locator('#settingsPanel').is_visible()
+            page.locator('#settingsDoneBtn').click()
+            page.locator('#startBtn').click()
+            page.wait_for_function("__GAME_DEBUG__.state === 'ready'",timeout=12000)
+            page.mouse.click(190,430)
+            for _ in range(80):
+              page.evaluate('__GAME_DEBUG__.alignGap()')
+              page.wait_for_timeout(90)
+              if page.evaluate('__GAME_DEBUG__.rules.depth >= 2'): break
+            state=page.evaluate('__GAME_DEBUG__.snapshot()')
+            print('PLAY',json.dumps(state,ensure_ascii=False))
+            assert state['depth'] >= 1,'Missing gameplay descend'
+            page.evaluate('CatAndroidLifecycle.setActive(false)')
+            page.screenshot(path='qa-screens/game-390.png',animations='disabled',timeout=15000)
+            page.set_viewport_size({'width':320,'height':568})
+            page.screenshot(path='qa-screens/game-320.png',animations='disabled',timeout=15000)
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            page.evaluate('CatAndroidLifecycle.setActive(true)')
+            assert not errors,errors
+            browser.close()
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-preview-smoke
+          path: qa-screens/
