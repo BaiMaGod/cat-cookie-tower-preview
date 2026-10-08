@@ -54,10 +54,16 @@ jobs:
             page.locator('#startBtn').click()
             page.wait_for_function("__GAME_DEBUG__.state === 'ready'",timeout=12000)
             page.mouse.click(190,430)
-            for _ in range(80):
-              page.evaluate('__GAME_DEBUG__.alignGap()')
-              page.wait_for_timeout(90)
-              if page.evaluate('__GAME_DEBUG__.rules.depth >= 2'): break
+            # The CI runner's software WebGL may render only a few frames/second.
+            # Advance normal gameplay physics at fixed 60 Hz without changing logic.
+            page.evaluate('CatAndroidLifecycle.setActive(false)')
+            page.evaluate("""() => {
+              const g=__GAME_DEBUG__;
+              for(let frame=0;frame<1100 && g.rules.alive && g.rules.depth<2;frame++){
+                g.alignGap(); g.step(1/60);
+              }
+              g.render();
+            }""")
             state=page.evaluate('__GAME_DEBUG__.snapshot()')
             print('PLAY',json.dumps(state,ensure_ascii=False))
             assert state['depth'] >= 1,'Missing gameplay descend'
