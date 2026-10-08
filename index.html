@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#8ddcff" />
   <title>猫猫果冻塔</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./app.css?v=1bb5f150cffd" />
+  <link rel="stylesheet" href="./app.css?v=3d454fe6ac63" />
 </head>
 <body>
   <main id="phoneFrame" class="phone-frame at-home">
@@ -28,35 +28,55 @@
       </div>
     </div>
 
+    <div id="powerupHud" class="powerup-hud" aria-live="off" hidden>
+      <div id="burstBuff" class="powerup-buff burst-buff" hidden>
+        <img class="powerup-buff-icon" src="./assets/powerup-burst.png" alt="" />
+        <span data-i18n="powerupBurst">暴走爪</span><strong id="burstBuffTime">3秒</strong>
+      </div>
+      <div id="shieldBuff" class="powerup-buff shield-buff" hidden>
+        <img class="powerup-buff-icon" src="./assets/powerup-shield.png" alt="" />
+        <span data-i18n="powerupShield">泡泡盾</span><strong id="shieldBuffTime">1次</strong>
+      </div>
+    </div>
+
     <div id="combo" class="combo">连吃 ×2</div>
-    <div class="world-label" aria-hidden="true" data-i18n="world">✦ 果冻乐园 ✦</div>
     <div id="toast" class="toast">
       <div class="gesture-badge" aria-hidden="true">
         <svg viewBox="0 0 64 64"><path class="gesture-arrows" d="M8 21h13m-8-5-5 5 5 5m43-5H43m8-5 5 5-5 5" />
           <g class="gesture-hand"><path d="M25 38V21c0-6 8-6 8 0v12-5c0-5 7-5 7 0v5-2c0-4 7-4 7 0v10c0 10-6 16-14 16-5 0-8-3-11-7l-7-10c-3-5 2-9 6-5l4 3Z" /></g>
         </svg>
       </div>
-      <div class="gesture-copy"><span class="guide-kicker" data-i18n="guideKicker">小爪爪，准备好了吗？</span><strong data-i18n="guideMain">左右滑动，转动果冻塔</strong><small data-i18n="guideDetail">找准缺口，让猫猫一路往下跳</small></div>
+      <div class="gesture-copy"><span class="guide-kicker" data-i18n="guideKicker">小爪爪，准备好了吗？</span><strong data-i18n="guideMain">左右滑动，转动果冻塔</strong><small data-i18n="guideDetail">找准缺口，让猫猫一路往下跳</small><small class="guide-smash" data-i18n="guideSmash">连坠满5层，可砸穿果冻。</small></div>
       <div class="guide-reward"><span>✦</span> <span data-i18n="guideReward">连吃果冻，补充弹跳</span> <b>＋1</b></div>
     </div>
 
     <div id="gameOver" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="deathTitle">
-      <div class="card result-card">
-        <div class="result-content">
-        <img class="result-cat" src="./assets/cat-fail-game.png" alt="" />
-        <div id="deathEmoji" class="death-emoji" hidden>😿</div>
-        <span class="result-kicker" data-i18n="resultKicker">本 次 冒 险 结 束</span>
-        <h1 id="deathTitle">没力气啦！</h1>
-        <p id="deathText">多吃几层果冻，补充弹跳次数。</p>
-        <div class="results">
-          <div><span data-i18n="resultDepth">下降层数</span><strong id="finalDepth">0 层</strong></div>
-          <div><span data-i18n="resultCombo">最高连吃</span><strong id="finalCombo">×0</strong></div>
-          <div><span data-i18n="resultScore">得分</span><strong id="finalScore">0</strong></div>
+      <div class="result-layout">
+        <div class="card result-card">
+          <div class="result-content">
+            <img class="result-cat" src="./assets/cat-fail-game.png" alt="" />
+            <div id="deathEmoji" class="death-emoji" hidden>😿</div>
+            <span class="result-kicker" data-i18n="resultKicker">本 次 冒 险 结 束</span>
+            <h1 id="deathTitle">没力气啦！</h1>
+            <p id="deathText">多吃几层果冻，补充弹跳次数。</p>
+            <div class="results">
+              <div><span data-i18n="resultDepth">下降层数</span><strong id="finalDepth">0 层</strong></div>
+              <div><span data-i18n="resultCombo">最高连吃</span><strong id="finalCombo">×0</strong></div>
+              <div><span data-i18n="resultScore">得分</span><strong id="finalScore">0</strong></div>
+            </div>
+            <p id="shareMomentSummary" class="share-moment-summary" hidden></p>
+            <div id="tapActions" class="tap-actions" hidden>
+              <button id="shareBtn" class="tap-action-btn" type="button" hidden>📣 <span data-i18n="share">分享</span></button>
+            </div>
+            <button id="restartBtn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 7a8 8 0 1 0 1 9M19 3v5h-5" /></svg><span data-i18n="restart">再来一次</span></button>
+            <button id="homeBtn" class="result-home-btn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7" /></svg><span data-i18n="home">返回首页</span></button>
+          </div>
         </div>
-        <button id="reviveBtn" class="revive-btn" hidden data-i18n="revive">看广告复活</button>
-        <p id="adStatus" class="ad-status" role="status" aria-live="polite"></p>
-        <button id="restartBtn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 7a8 8 0 1 0 1 9M19 3v5h-5" /></svg><span data-i18n="restart">再来一次</span></button>
-        <button id="homeBtn" class="result-home-btn"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7" /></svg><span data-i18n="home">返回首页</span></button>
+        <div id="reviveAction" class="revive-action" hidden>
+          <button id="reviveBtn" class="revive-btn" type="button" hidden aria-label="看广告复活" data-i18n-aria="revive" aria-describedby="adStatus">
+            <img src="./assets/result-revive-candy.png" data-i18n-image="revive-candy" data-i18n-image-prefix="result-" alt="" />
+          </button>
+          <p id="adStatus" class="ad-status" role="status" aria-live="polite"></p>
         </div>
       </div>
     </div>
@@ -82,6 +102,15 @@
       <button id="startBtn" class="home-start-btn" type="button" aria-label="开始游戏" data-i18n-aria="start">
         <img src="./assets/home-start.png" data-i18n-image="start" alt="" />
       </button>
+      <div id="homeTapActions" class="tap-actions home-tap-actions" hidden>
+        <button id="leaderboardBtn" class="home-service-btn" type="button" aria-label="排行榜" data-i18n-aria="leaderboard" hidden>
+          <img src="./assets/home-leaderboard-candy.png" data-i18n-image="leaderboard-candy" alt="" />
+        </button>
+        <button id="achievementsBtn" class="home-service-btn" type="button" aria-label="成就" data-i18n-aria="achievements" hidden>
+          <img src="./assets/home-achievements-candy.png" data-i18n-image="achievements-candy" alt="" />
+        </button>
+        <p id="homeTapStatus" class="home-tap-status" role="status" aria-live="polite"></p>
+      </div>
     </section>
 
     <div id="settingsPanel" class="overlay home-settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -89,6 +118,15 @@
         <button id="closeSettingsBtn" class="home-settings-close" type="button" aria-label="关闭设置" data-i18n-aria="closeSettings">×</button>
         <h2 id="settingsTitle" data-i18n="settingsTitle">游戏设置</h2>
         <p data-i18n="settingsHelp">左右滑动旋转果冻塔，让胖猫从缺口落下。穿过果冻可以补充弹跳次数，避开粉红色危险果冻。</p>
+        <p class="smash-help" data-i18n="settingsSmash">连坠满5层后，下一次触碰可砸穿果冻，包括毒果冻。</p>
+        <div class="powerup-help">
+          <strong data-i18n="powerupHelp">碰到悬浮甜点，马上获得道具！</strong>
+          <ul>
+            <li><b class="burst-help" data-i18n="powerupBurst">暴走爪</b><span data-i18n="powerupBurstHint">3秒内砸碎所有果冻，毒果冻也不怕！</span></li>
+            <li><b class="shield-help" data-i18n="powerupShield">泡泡盾</b><span data-i18n="powerupShieldHint">抵挡一次毒果冻，并砸开脚下这一层。</span></li>
+            <li><b class="energy-help" data-i18n="powerupEnergy">活力布丁</b><span data-i18n="powerupEnergyHint">补充3次弹跳，满了就换成奖励分数。</span></li>
+          </ul>
+        </div>
         <label class="home-language-setting"><span data-i18n="language">语言</span><select id="languageSelect" aria-label="Language / 语言"><option value="zh">简体中文</option><option value="en">English</option></select></label>
         <label class="home-motion-setting"><span data-i18n="homeMotion">首页动画</span><input id="homeMotionToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
         <label class="home-motion-setting"><span data-i18n="sound">游戏音效</span><input id="soundToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
@@ -105,6 +143,7 @@
     </div>
   </main>
 
-  <script type="module" src="./boot.bundle.js?v=1bb5f150cffd"></script>
+  <script src="./game.bundle.js?v=3d454fe6ac63"></script>
+  <script type="module" src="./boot.bundle.js?v=3d454fe6ac63"></script>
 </body>
 </html>
