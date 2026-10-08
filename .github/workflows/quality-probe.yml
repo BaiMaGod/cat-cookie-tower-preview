@@ -1,0 +1,12 @@
+name: Preview runner check
+on:
+  push:
+    branches: ["quality-deploy-probe-20261008"]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner available
+        run: echo "Public repo Actions runner started"
