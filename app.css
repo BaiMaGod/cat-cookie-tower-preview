@@ -620,3 +620,39 @@ html[lang="en"] .level-choice-copy strong { white-space:nowrap; overflow:hidden;
 
 /* 暂时隐藏关卡模式入口，保留关卡数据供后续恢复。 */
 .home-mode-actions[hidden] { display: none; }
+
+/* Character collection */
+.home-cats-btn { position:absolute; z-index:5; left:50%; transform:translateX(-50%); bottom:2%; bottom:max(2%, env(safe-area-inset-bottom)); min-height:44px; width:62%; display:flex; align-items:center; justify-content:center; gap:9px; padding:0 12px; border:2px solid #fff9e2; border-radius:20px; background:linear-gradient(#fff5cd,#ffe0b2); box-shadow:0 3px 0 #d99461; color:#92512e; font:inherit; font-size:16px; font-weight:800; cursor:pointer; }
+.home-cats-btn img { width:42px; height:42px; object-fit:contain; }
+.cat-owned-count { font-size:12px; font-weight:700; opacity:.8; }
+.home-start-btn { bottom:calc(2% + 56px); bottom:calc(max(2%, env(safe-area-inset-bottom)) + 56px); }
+.home-record { bottom:calc(2% + 56px + 26vw + 10px); bottom:calc(max(2%, env(safe-area-inset-bottom)) + 56px + 26cqw + 10px); }
+.home-screen.with-tap-services .home-cats-btn { bottom:calc(2% + 70px); bottom:calc(max(2%, env(safe-area-inset-bottom)) + 70px); }
+.home-screen.with-tap-services .home-start-btn { bottom:calc(2% + 126px); bottom:calc(max(2%, env(safe-area-inset-bottom)) + 126px); }
+.home-screen.with-tap-services .home-record { bottom:calc(2% + 126px + 26vw + 10px); bottom:calc(max(2%, env(safe-area-inset-bottom)) + 126px + 26cqw + 10px); }
+.cat-collection-card { padding:22px 20px 24px; }
+.cat-collection-card h2 { margin:0 0 8px; }
+.cat-preview-stage { height:150px; display:grid; place-items:center; border-radius:24px; background:radial-gradient(ellipse,#fff6dc,#ffdcb744 65%,transparent 66%); }
+.cat-preview-stage img { width:155px; height:155px; object-fit:contain; filter:drop-shadow(0 8px 6px #bd80512b); }
+.cat-collection-card h3 { margin:4px 0 6px; font-size:20px; }
+.cat-state { display:inline-block; padding:3px 12px; border-radius:99px; background:#ffe1b8; font-size:12px; font-weight:800; }
+.cat-collection-card .cat-requirement { margin:10px 0 7px; text-align:center; font-size:13px; line-height:1.5; }
+#catUnlockProgress { display:block; width:100%; height:8px; accent-color:#ed9b53; border:0; border-radius:9px; overflow:hidden; background:#ecd6c1; }
+#catUnlockProgress::-webkit-progress-bar { background:#ecd6c1; border-radius:9px; }
+#catUnlockProgress::-webkit-progress-value { background:linear-gradient(90deg,#ffc566,#ee9a7b); border-radius:9px; }
+#catUnlockProgress[hidden],.cat-progress-text[hidden] { display:none; }
+.cat-progress-text { display:block; font-size:12px; margin:5px 0 0; }
+.cat-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.cat-choice { min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; border:2px solid #eacbb0; border-radius:18px; background:#fffaf0; color:#92512e; font:inherit; cursor:pointer; }
+.cat-choice img { width:75px; height:75px; object-fit:contain; }
+.cat-choice strong { font-size:12px; }
+.cat-choice small { font-size:11px; }
+.cat-choice.previewing { border-color:#e9a24e; background:#fff1d0; box-shadow:0 0 0 2px #ffdca866; }
+.cat-choice.locked small { color:#977568; }
+.cat-collection-card .home-settings-done { margin-top:14px; }
+.cat-collection-card .home-settings-done:disabled { cursor:default; box-shadow:0 3px 0 #c7ac96; background:#eddbc5; color:#947561; }
+.home-cats-btn:focus-visible,.cat-choice:focus-visible { outline:3px solid #7b3e85; outline-offset:3px; }
+.cat-collection-card .home-settings-close { width:44px; height:44px; top:3px; right:3px; }
+.cat-unlock-notice { position:absolute; z-index:42; top:25%; left:8%; width:84%; padding:14px; border:2px solid #fff8e0; border-radius:20px; background:#fff0ccf5; box-shadow:0 5px 0 #d8a467; color:#92512e; font-size:15px; font-weight:800; text-align:center; pointer-events:none; }
+.cat-unlock-notice[hidden] { display:none; }
+@media(max-height:650px) { .cat-collection-card { padding:18px 16px; } .cat-preview-stage { height:100px; } .cat-preview-stage img { width:110px; height:110px; } .cat-choice img { width:60px; height:60px; } }

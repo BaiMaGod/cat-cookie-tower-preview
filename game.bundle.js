@@ -1,6 +1,6 @@
-/* cat-cookie-tower preview | source 9f13ee8e | web 3e8204c61fb4 */
+/* cat-cookie-tower preview | source fc4e6bce | web c81030fbd588 */
 
-// src/drag-input.mjs?v=3e8204c61fb4
+// src/drag-input.mjs?v=c81030fbd588
 function bindDragInput(element, { onStart, onMove, onEnd, runtime = globalThis, diagnostics } = {}) {
   const doc = element.ownerDocument || runtime.document;
   const pointer = typeof runtime.PointerEvent === "function";
@@ -93,7 +93,7 @@ function bindDragInput(element, { onStart, onMove, onEnd, runtime = globalThis, 
   } };
 }
 
-// src/texture-loader.mjs?v=3e8204c61fb4
+// src/texture-loader.mjs?v=c81030fbd588
 function loadTextureWithRetry(THREE6, loader, url, { timeoutMs = 12e3, retries = 1, diagnostics } = {}) {
   const texture = new THREE6.Texture();
   const finish = diagnostics?.assetStart(url);
@@ -145,7 +145,7 @@ function loadTextureWithRetry(THREE6, loader, url, { timeoutMs = 12e3, retries =
   return { texture, ready };
 }
 
-// src/cat-feedback.mjs?v=3e8204c61fb4
+// src/cat-feedback.mjs?v=c81030fbd588
 function catScaleForJumps(jumps, maxJumps) {
   return 0.68 + 0.3 * Math.max(0, Math.min(1, jumps / maxJumps));
 }
@@ -155,14 +155,14 @@ function followCatScale(current, target, dt) {
   return target + (current - target) * Math.exp(-rate * dt);
 }
 
-// src/ad-config.mjs?v=3e8204c61fb4
+// src/ad-config.mjs?v=c81030fbd588
 var AD_CONFIG = Object.freeze({
   timeoutMs: 12e4,
   wechat: Object.freeze({ enabled: true, adUnitId: "" }),
   "taptap-h5": Object.freeze({ enabled: true, adUnitId: "1054324" })
 });
 
-// src/ad-video.mjs?v=3e8204c61fb4
+// src/ad-video.mjs?v=c81030fbd588
 function createVideoAdapter(api, config) {
   let ad = null, pending = null, destroyed = false;
   const supported = () => !destroyed && config.enabled === true && typeof config.adUnitId === "string" && config.adUnitId.trim().length > 0 && typeof api?.createRewardedVideoAd === "function";
@@ -238,19 +238,19 @@ function createVideoAdapter(api, config) {
   };
 }
 
-// src/ad-wechat.mjs?v=3e8204c61fb4
+// src/ad-wechat.mjs?v=c81030fbd588
 function createWechatAdAdapter(wx, config) {
   return createVideoAdapter(wx, config);
 }
 
-// src/ad-taptap-h5.mjs?v=3e8204c61fb4
+// src/ad-taptap-h5.mjs?v=c81030fbd588
 function createTaptapH5AdAdapter(tap, config) {
   const adapter = createVideoAdapter(tap, config);
   void adapter.preload();
   return adapter;
 }
 
-// src/ads.mjs?v=3e8204c61fb4
+// src/ads.mjs?v=c81030fbd588
 function createAdService({ runtime = globalThis, platform, api, config = runtime.__CAT_AD_CONFIG__ } = {}) {
   const detected = platform ?? (runtime.__CAT_PLATFORM__ === "taptap-h5" || runtime.document && runtime.tap ? "taptap-h5" : !runtime.document && runtime.wx && !runtime.tt ? "wechat" : "unsupported");
   const settings = {
@@ -267,7 +267,7 @@ function createAdService({ runtime = globalThis, platform, api, config = runtime
   };
 }
 
-// src/tap-services.mjs?v=3e8204c61fb4
+// src/tap-services.mjs?v=c81030fbd588
 var ARCHIVE_NAME = "cat-tower-best-record";
 var LEADERBOARDS = {
   score: "so2knc1s4zz28ep6n0",
@@ -641,7 +641,7 @@ function createTapServices({
   return { supports, beginRun, getShareMoment, init, notifyProgress, onGameOver, openLeaderboard, showAchievements, share, restoreRecord };
 }
 
-// src/tapdb-client.mjs?v=3e8204c61fb4
+// src/tapdb-client.mjs?v=c81030fbd588
 var TAPDB_ENDPOINT = "https://e.tapdb.net/v2/event";
 var DEVICE_KEY = "cat-tower.tapdb-device.v1";
 function getOS(runtime) {
@@ -732,14 +732,14 @@ function createTapDbClient({ runtime = globalThis, config = {}, now = () => Date
   } };
 }
 
-// src/tapdb-config.mjs?v=3e8204c61fb4
+// src/tapdb-config.mjs?v=c81030fbd588
 var TAPDB_CONFIG = Object.freeze({
   clientId: "e7hqimu2rksanhucsa",
   appVersion: "1.0.0",
   channel: "cat-tower-h5"
 });
 
-// src/game-analytics.mjs?v=3e8204c61fb4
+// src/game-analytics.mjs?v=c81030fbd588
 var ANALYTICS_EVENTS = Object.freeze({
   game_start: ["entry"],
   game_over: ["score", "depth", "best_combo", "reason"],
@@ -809,7 +809,7 @@ function createGameAnalytics({ runtime = globalThis, maxPending = 100, config = 
   } };
 }
 
-// src/revive.mjs?v=3e8204c61fb4
+// src/revive.mjs?v=c81030fbd588
 function createReviveController({ ads: ads2, canRevive, restore, onChange = () => {
 } }) {
   let busy = false, status = "", generation = 0;
@@ -853,7 +853,7 @@ function createReviveController({ ads: ads2, canRevive, restore, onChange = () =
   return controller;
 }
 
-// src/eat-effects.js?v=3e8204c61fb4
+// src/eat-effects.js?v=c81030fbd588
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
 }) {
   const TAU4 = Math.PI * 2;
@@ -1079,14 +1079,14 @@ function createBurstTexture(THREE6, createCanvas) {
   return texture;
 }
 
-// src/jelly-motion.mjs?v=3e8204c61fb4
+// src/jelly-motion.mjs?v=c81030fbd588
 var JELLY_CONTACT_TIME = Math.PI / 20;
 function jellyCompression(time, strength) {
   if (time < 0 || time >= 0.9) return 0;
   return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
 }
 
-// src/game-config.mjs?v=3e8204c61fb4
+// src/game-config.mjs?v=c81030fbd588
 var GAME_CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 5,
@@ -1109,7 +1109,7 @@ var GAME_CONFIG = Object.freeze({
   smashBounceVelocity: 4.15
 });
 
-// src/camera-framing.mjs?v=3e8204c61fb4
+// src/camera-framing.mjs?v=c81030fbd588
 var cameraDistance = Math.hypot(8.2, 20);
 var cameraUpY = 20 / cameraDistance;
 var cameraUpZ = -8.2 / cameraDistance;
@@ -1125,10 +1125,23 @@ function followGameplayCamera(focusY, targetY, catY, previousCatY) {
   return Math.max(focusY + descent, Math.min(focusY, targetY));
 }
 
-// src/i18n.mjs?v=3e8204c61fb4
+// src/i18n.mjs?v=c81030fbd588
 var STORAGE_KEY = "cat-tower.language.v1";
 var STRINGS = {
   zh: {
+    myCats: "我的猫猫",
+    closeCats: "关闭我的猫猫",
+    catUsing: "使用中",
+    catOwned: "已拥有",
+    catLocked: "未解锁",
+    catUse: "使用这只",
+    catUnlockGoal: "单局下落达到 100 层即可获得",
+    catDefault: "初始拥有，陪你开启冒险",
+    catProgressLabel: "单局最深层数",
+    catProgress: "单局最深 {count} / 100 层",
+    catUnlockAction: "下落 100 层解锁",
+    catUnlocked: "解锁圆球毛绒猫！回到「我的猫猫」即可使用",
+    catOwnedHint: "已达成单局下落 100 层，永久拥有",
     catCharacter: "猫咪角色",
     catRound: "圆球毛绒猫",
     catClassic: "经典橘猫",
@@ -1278,6 +1291,19 @@ var STRINGS = {
     labNote: "当前展示分块压缩回弹。局部凹陷与毒果冻包裹将在材质确定后继续细化。"
   },
   en: {
+    myCats: "My Cats",
+    closeCats: "Close My Cats",
+    catUsing: "In use",
+    catOwned: "Owned",
+    catLocked: "Locked",
+    catUse: "Use this cat",
+    catUnlockGoal: "Drop 100 levels in a single run to unlock",
+    catDefault: "Your first adventure companion",
+    catProgressLabel: "Deepest single run",
+    catProgress: "Single-run best: {count} / 100",
+    catUnlockAction: "Drop 100 levels to unlock",
+    catUnlocked: "Round fluffy cat unlocked! Choose it in My Cats",
+    catOwnedHint: "100 levels in one run reached. Yours forever!",
     catCharacter: "Cat character",
     catRound: "Round fluffy cat",
     catClassic: "Classic tabby",
@@ -1472,7 +1498,7 @@ function setLocale(next) {
   applyTranslations();
 }
 
-// src/logic.mjs?v=3e8204c61fb4
+// src/logic.mjs?v=c81030fbd588
 var TAU = Math.PI * 2;
 function normalizeAngle(a) {
   a %= TAU;
@@ -1679,7 +1705,7 @@ var LayerGenerator = class {
   }
 };
 
-// src/canvas-paths.mjs?v=3e8204c61fb4
+// src/canvas-paths.mjs?v=c81030fbd588
 var reported = /* @__PURE__ */ new Set();
 function ellipsePath(ctx, x, y, rx, ry, rotation, start, end, anticlockwise = false) {
   const native = typeof ctx.ellipse === "function";
@@ -1700,7 +1726,7 @@ function ellipsePath(ctx, x, y, rx, ry, rotation, start, end, anticlockwise = fa
   ctx.restore();
 }
 
-// src/classic-material.js?v=3e8204c61fb4
+// src/classic-material.js?v=c81030fbd588
 var THREE = globalThis.__THREE__;
 function createClassicMaterial(danger = false) {
   return new THREE.ShaderMaterial({
@@ -1779,7 +1805,7 @@ function createClassicMaterial(danger = false) {
   });
 }
 
-// src/candy-jelly-material.js?v=3e8204c61fb4
+// src/candy-jelly-material.js?v=c81030fbd588
 var THREE2 = globalThis.__THREE__;
 function createCandyJellyMaterial(config, danger = false) {
   const material = new THREE2.MeshPhysicalMaterial({
@@ -1866,7 +1892,7 @@ function createAirPocketMaterial(danger = false) {
   });
 }
 
-// src/platform-materials.js?v=3e8204c61fb4
+// src/platform-materials.js?v=c81030fbd588
 var THREE3 = globalThis.__THREE__;
 var STORAGE_KEY2 = "cat-tower.platform-material.v1";
 var FIXED_JELLY = globalThis.__CAT_FIXED_JELLY__ === true;
@@ -1979,7 +2005,7 @@ function createPlatformMaterials(config) {
   };
 }
 
-// src/game-assets.mjs?v=3e8204c61fb4
+// src/game-assets.mjs?v=c81030fbd588
 var GAME_ASSETS = Object.freeze({
   levelButton: "./assets/level-candy-button-game.png",
   levelVictory: "./assets/level-victory-cat-game.png",
@@ -2012,7 +2038,7 @@ var CAT_SOURCES = Object.freeze({
   fail: GAME_ASSETS.fail
 });
 
-// src/visuals.js?v=3e8204c61fb4
+// src/visuals.js?v=c81030fbd588
 var THREE4 = globalThis.__THREE__;
 var TAU2 = Math.PI * 2;
 function canvasTexture(width, height, paint) {
@@ -2439,7 +2465,7 @@ function setVisibleTowerLayers(platforms, columns, focusY, reach) {
   }
 }
 
-// src/world-background.js?v=3e8204c61fb4
+// src/world-background.js?v=c81030fbd588
 function createWorldBackground(scene2, loadTexture) {
   const texture = loadTexture(GAME_ASSETS.world);
   scene2.background = texture;
@@ -2455,7 +2481,7 @@ function createWorldBackground(scene2, loadTexture) {
   };
 }
 
-// src/material-switcher.js?v=3e8204c61fb4
+// src/material-switcher.js?v=c81030fbd588
 var presetName = (id) => t(`preset${id[0].toUpperCase()}${id.slice(1)}`);
 function mountMaterialSwitcher(art2, root, parent) {
   if (globalThis.__CAT_FIXED_JELLY__ === true) return;
@@ -2506,12 +2532,14 @@ function mountMaterialSwitcher(art2, root, parent) {
   parent.appendChild(panel);
 }
 
-// src/cat-characters.mjs?v=3e8204c61fb4
+// src/cat-characters.mjs?v=c81030fbd588
 var CAT_CHOICE_KEY = "cat-tower.character.v1";
+var CAT_COLLECTION_KEY = "cat-tower.cat-collection.v1";
+var ROUND_UNLOCK_DEPTH = 100;
 var roundPath = (name) => `./assets/cats/round/${name}-game.png`;
 var CAT_CHARACTERS = Object.freeze({
-  classic: Object.freeze({ id: "classic", sources: CAT_SOURCES, victory: GAME_ASSETS.levelVictory }),
-  round: Object.freeze({ id: "round", sources: Object.freeze({
+  classic: Object.freeze({ id: "classic", nameKey: "catClassic", unlockDepth: 0, sources: CAT_SOURCES, victory: GAME_ASSETS.levelVictory }),
+  round: Object.freeze({ id: "round", nameKey: "catRound", unlockDepth: ROUND_UNLOCK_DEPTH, sources: Object.freeze({
     idle: roundPath("cat-idle"),
     fall: roundPath("cat-fall"),
     eat: roundPath("cat-eat"),
@@ -2521,22 +2549,73 @@ var CAT_CHARACTERS = Object.freeze({
 });
 var CHARACTER_ASSET_PATHS = Object.freeze([...new Set(Object.values(CAT_CHARACTERS).flatMap((character) => [...Object.values(character.sources), character.victory]))]);
 function resolveCatId(value) {
-  return value === "classic" ? "classic" : "round";
+  return value === "round" ? "round" : "classic";
 }
-function loadCatChoice(read) {
+var validDepth = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
+function readObject(read, key2) {
   try {
-    return resolveCatId(read(CAT_CHOICE_KEY));
+    const value = read(key2);
+    return typeof value === "string" ? JSON.parse(value) : value;
   } catch {
-    return "round";
+    return null;
   }
 }
-function saveCatChoice(write, id) {
-  const selected = resolveCatId(id);
+function loadCatChoice(read, bestDepth = 0) {
+  try {
+    const id = resolveCatId(read(CAT_CHOICE_KEY));
+    return validDepth(bestDepth) >= CAT_CHARACTERS[id].unlockDepth ? id : "classic";
+  } catch {
+    return "classic";
+  }
+}
+function saveCatChoice(write, id, bestDepth = 0) {
+  const resolved = resolveCatId(id);
+  const selected = validDepth(bestDepth) >= CAT_CHARACTERS[resolved].unlockDepth ? resolved : "classic";
   try {
     write(CAT_CHOICE_KEY, selected);
   } catch {
   }
   return selected;
+}
+function createCatCollection(read, write, bestDepth = 0) {
+  let depth = Math.min(ROUND_UNLOCK_DEPTH, Math.max(
+    validDepth(bestDepth),
+    validDepth(readObject(read, CAT_COLLECTION_KEY)?.depth),
+    validDepth(readObject(read, "cat-tower.best-record.v1")?.depth)
+  ));
+  let selected = loadCatChoice(read, depth);
+  const persist = () => {
+    try {
+      write(CAT_COLLECTION_KEY, JSON.stringify({ depth }));
+    } catch {
+    }
+  };
+  persist();
+  saveCatChoice(write, selected, depth);
+  return {
+    get selected() {
+      return selected;
+    },
+    get depth() {
+      return depth;
+    },
+    owns(id) {
+      return !!CAT_CHARACTERS[id] && depth >= CAT_CHARACTERS[id].unlockDepth;
+    },
+    recordDepth(value) {
+      const next = Math.min(ROUND_UNLOCK_DEPTH, Math.max(depth, validDepth(value)));
+      if (next === depth) return false;
+      const unlocked = depth < ROUND_UNLOCK_DEPTH && next >= ROUND_UNLOCK_DEPTH;
+      depth = next;
+      persist();
+      return unlocked;
+    },
+    select(id) {
+      if (!this.owns(id)) return false;
+      selected = saveCatChoice(write, id, depth);
+      return true;
+    }
+  };
 }
 var roundFeet = Object.freeze({
   idle: 49 / 512,
@@ -2559,7 +2638,7 @@ function catMouthUV(id) {
   return id === "round" ? { x: 0.515, y: 0.74 } : null;
 }
 
-// src/game-sounds.mjs?v=3e8204c61fb4
+// src/game-sounds.mjs?v=c81030fbd588
 var GAME_SOUNDS = Object.freeze({
   ...Object.fromEntries(["combo", "low", "hazard", "starved"].map((name) => [name, `./assets/sfx/${name}.wav`])),
   jump: "./assets/sfx/jump.wav",
@@ -2652,7 +2731,7 @@ function createWebSounds() {
   };
 }
 
-// src/powerups.mjs?v=3e8204c61fb4
+// src/powerups.mjs?v=c81030fbd588
 var POWERUP_TYPES = Object.freeze(["burst", "shield", "energy"]);
 var POWERUP_CONFIG = Object.freeze({
   duration: 3,
@@ -2778,7 +2857,7 @@ function powerupInReach(pickup, localAngle, prevY, currentY, layerTopY2) {
   return prevCenter >= pickupY - POWERUP_CONFIG.pickupVerticalRadius && currentCenter <= pickupY + POWERUP_CONFIG.pickupVerticalRadius;
 }
 
-// src/charged-cat-effect.js?v=3e8204c61fb4
+// src/charged-cat-effect.js?v=c81030fbd588
 function createChargedCatEffect(THREE6, { texture, spriteMaterial, catSprite, glowMap }) {
   const group = new THREE6.Group();
   group.name = "charged-cat-energy";
@@ -2982,7 +3061,7 @@ function createChargedCatEffect(THREE6, { texture, spriteMaterial, catSprite, gl
   };
 }
 
-// src/powerup-art.js?v=3e8204c61fb4
+// src/powerup-art.js?v=c81030fbd588
 var TAU3 = Math.PI * 2;
 function createPowerupArt(THREE6, createCanvas = () => document.createElement("canvas"), loadTexture) {
   const textures = [];
@@ -3209,7 +3288,7 @@ function createPowerupArt(THREE6, createCanvas = () => document.createElement("c
   };
 }
 
-// src/levels.mjs?v=3e8204c61fb4
+// src/levels.mjs?v=c81030fbd588
 var LEVELS = Object.freeze([
   { id: 1, name: "奶油初旅", layers: 8, goal: "bounce", target: 3 },
   { id: 2, name: "草莓转角", layers: 12, goal: "bounce", target: 4 },
@@ -3403,6 +3482,7 @@ function renderBestRecord() {
 }
 function updateBestRecord() {
   if (activeLevel) return;
+  recordCatDepth(rules.depth);
   const score = Math.max(bestRecord.score, rules.score);
   const depth = Math.max(bestRecord.depth, rules.depth);
   if (score === bestRecord.score && depth === bestRecord.depth) return;
@@ -3424,6 +3504,7 @@ tapServices.restoreRecord(bestRecord).then((merged) => {
   const depth = Math.max(bestRecord.depth, merged.depth);
   if (score === bestRecord.score && depth === bestRecord.depth) return;
   bestRecord = { score, depth };
+  recordCatDepth(depth, false);
   try {
     localStorage.setItem(BEST_RECORD_KEY, JSON.stringify(bestRecord));
   } catch {
@@ -3505,7 +3586,8 @@ function clearPillarModules() {
   pillarRoot.clear();
   pillarModules.clear();
 }
-var characterId = loadCatChoice((key2) => localStorage.getItem(key2));
+var catCollection = createCatCollection((key2) => localStorage.getItem(key2), (key2, value) => localStorage.setItem(key2, value), bestRecord.depth);
+var characterId = catCollection.selected;
 var catTextureCache = /* @__PURE__ */ new Map();
 var catTextureSets = Object.fromEntries(Object.values(CAT_CHARACTERS).map((character) => [
   character.id,
@@ -3548,20 +3630,117 @@ function setCatTexture(name) {
   cat.visual.center.y = catOriginY(characterId, name);
 }
 var cat = createCat();
-var characterSelect = document.getElementById("characterSelect");
-characterSelect.value = characterId;
-document.querySelector(".loader-cat").src = CAT_CHARACTERS[characterId].sources.idle;
-characterSelect.addEventListener("change", () => {
-  characterId = saveCatChoice((key2, value) => localStorage.setItem(key2, value), characterSelect.value);
-  characterSelect.value = characterId;
+var catPanel = document.getElementById("catPanel");
+var myCatsBtn = document.getElementById("myCatsBtn");
+var closeCatsBtn = document.getElementById("closeCatsBtn");
+var useCatBtn = document.getElementById("useCatBtn");
+var previewCatId = characterId;
+var catUnlockTimer;
+function applyCatChoice(id) {
+  if (!catCollection.select(id)) return;
+  characterId = catCollection.selected;
   catTextures = catTextureSets[characterId];
   const pose = cat.currentTexture;
   cat.currentTexture = "";
   setCatTexture(pose);
   document.querySelector(".result-cat").src = CAT_CHARACTERS[characterId].sources.fail;
   document.querySelector(".loader-cat").src = CAT_CHARACTERS[characterId].sources.idle;
+  renderCats();
   scheduleFrame(true);
+}
+function renderCats() {
+  const character = CAT_CHARACTERS[previewCatId];
+  const owned = catCollection.owns(previewCatId), using = previewCatId === characterId;
+  document.getElementById("homeCatAvatar").src = CAT_CHARACTERS[characterId].sources.idle;
+  document.getElementById("catOwnedCount").textContent = `${Object.keys(CAT_CHARACTERS).filter((id) => catCollection.owns(id)).length}/${Object.keys(CAT_CHARACTERS).length}`;
+  document.getElementById("catPreview").src = character.sources.idle;
+  document.getElementById("catPreviewName").textContent = t(character.nameKey);
+  document.getElementById("catPreviewState").textContent = t(using ? "catUsing" : owned ? "catOwned" : "catLocked");
+  document.getElementById("catRequirement").textContent = t(character.unlockDepth ? owned ? "catOwnedHint" : "catUnlockGoal" : "catDefault");
+  const progress = document.getElementById("catUnlockProgress");
+  progress.hidden = owned;
+  progress.value = catCollection.depth;
+  const progressText = document.getElementById("catProgressText");
+  progressText.hidden = owned;
+  progressText.textContent = t("catProgress", { count: catCollection.depth });
+  useCatBtn.disabled = !owned || using;
+  useCatBtn.textContent = t(using ? "catUsing" : owned ? "catUse" : "catUnlockAction");
+  const list = document.getElementById("catList");
+  for (const entry of Object.values(CAT_CHARACTERS)) {
+    let button = list.querySelector(`[data-cat="${entry.id}"]`);
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.dataset.cat = entry.id;
+      const img = document.createElement("img");
+      img.src = entry.sources.idle;
+      img.alt = "";
+      button.append(img, document.createElement("strong"), document.createElement("small"));
+      list.append(button);
+      button.addEventListener("click", () => {
+        previewCatId = entry.id;
+        renderCats();
+      });
+    }
+    const unlocked = catCollection.owns(entry.id), selected = entry.id === characterId;
+    button.className = `cat-choice${entry.id === previewCatId ? " previewing" : ""}${unlocked ? "" : " locked"}`;
+    button.setAttribute("aria-pressed", String(entry.id === previewCatId));
+    button.querySelector("strong").textContent = t(entry.nameKey);
+    button.querySelector("small").textContent = (unlocked ? "" : "🔒 ") + t(selected ? "catUsing" : unlocked ? "catOwned" : "catLocked");
+  }
+}
+function recordCatDepth(depth, notify = true) {
+  const previous = catCollection.depth;
+  const unlocked = catCollection.recordDepth(depth);
+  if (unlocked || previous !== catCollection.depth && !catPanel.classList.contains("hidden")) renderCats();
+  if (unlocked && notify) {
+    const notice = document.getElementById("catUnlockNotice");
+    notice.textContent = t("catUnlocked");
+    notice.hidden = false;
+    clearTimeout(catUnlockTimer);
+    catUnlockTimer = setTimeout(() => {
+      notice.hidden = true;
+    }, 4500);
+  }
+}
+myCatsBtn.addEventListener("click", () => {
+  previewCatId = characterId;
+  renderCats();
+  catPanel.classList.remove("hidden");
+  homeScreen.inert = true;
+  closeCatsBtn.focus();
 });
+function closeCats() {
+  catPanel.classList.add("hidden");
+  homeScreen.inert = false;
+  myCatsBtn.focus();
+  scheduleFrame(true);
+}
+closeCatsBtn.addEventListener("click", closeCats);
+catPanel.addEventListener("click", (event) => {
+  if (event.target === catPanel) closeCats();
+});
+useCatBtn.addEventListener("click", () => {
+  applyCatChoice(previewCatId);
+  closeCats();
+});
+document.addEventListener("keydown", (event) => {
+  if (catPanel.classList.contains("hidden")) return;
+  if (event.key === "Escape") closeCats();
+  if (event.key === "Tab") {
+    const buttons = [...catPanel.querySelectorAll("button:not(:disabled)")];
+    const first = buttons[0], last2 = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last2.focus();
+    } else if (!event.shiftKey && document.activeElement === last2) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+});
+document.querySelector(".loader-cat").src = CAT_CHARACTERS[characterId].sources.idle;
+renderCats();
 var powerupArt = createPowerupArt(THREE5, () => document.createElement("canvas"), loadArtTexture);
 var powerupAura = powerupArt.createAura(cat.root, cat.visual);
 var powers = new PowerupState();
@@ -4381,6 +4560,7 @@ document.getElementById("languageSelect").addEventListener("change", (event) => 
 document.addEventListener("cat-language-change", () => {
   renderLevels();
   updateHUD();
+  renderCats();
   if (hud.combo.dataset.kind === "combo") hud.combo.textContent = t("combo", { count: hud.combo.dataset.count });
   else if (hud.combo.dataset.kind === "smash") hud.combo.textContent = t("smash");
   if (!hud.gameOver.classList.contains("hidden")) renderGameOver(hud.gameOver.dataset.reason);
@@ -4669,6 +4849,7 @@ var last = performance.now();
 var nativeActive = globalThis.CatAndroidLifecycle?.active ?? true;
 function scheduleFrame(resetTime = false) {
   const homeBlocked = frameEl.classList.contains("at-home") && !homeDemo.active;
+  if (!catPanel.classList.contains("hidden")) return;
   if (!frameLoopReady || document.hidden || !nativeActive || homeBlocked || frameHandle !== null) return;
   if (resetTime) last = performance.now();
   frameHandle = requestAnimationFrame(frame);
@@ -4713,6 +4894,7 @@ globalThis.CatAndroidLifecycle = {
 };
 function frame(now) {
   frameHandle = null;
+  if (!catPanel.classList.contains("hidden")) return;
   const dt = Math.min(Math.max((now - last) / 1e3, 0), 1 / 30);
   last = now;
   ensureLayers();
@@ -4794,6 +4976,8 @@ if (debugMode) {
       return {
         state,
         characterId,
+        catCollectionDepth: catCollection.depth,
+        roundOwned: catCollection.owns("round"),
         catPose: cat.currentTexture,
         depth: rules.depth,
         jumps: rules.jumps,

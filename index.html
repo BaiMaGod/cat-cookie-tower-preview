@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#8ddcff" />
   <title>猫猫果冻塔</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./app.css?v=3e8204c61fb4" />
+  <link rel="stylesheet" href="./app.css?v=c81030fbd588" />
 </head>
 <body>
   <main id="phoneFrame" class="phone-frame at-home">
@@ -59,7 +59,7 @@
       <div class="result-layout">
         <div class="card result-card">
           <div class="result-content">
-            <img class="result-cat" src="./assets/cats/round/cat-fail-game.png" alt="" />
+            <img class="result-cat" src="./assets/cat-fail-game.png" alt="" />
             <div id="deathEmoji" class="death-emoji" hidden>😿</div>
             <span class="result-kicker" data-i18n="resultKicker">本 次 冒 险 结 束</span>
             <h1 id="deathTitle">没力气啦！</h1>
@@ -110,6 +110,9 @@
       <button id="startBtn" class="home-start-btn" type="button" aria-label="开始游戏" data-i18n-aria="start">
         <img src="./assets/home-start-game.png" data-i18n-image="start" alt="" />
       </button>
+      <button id="myCatsBtn" class="home-cats-btn" type="button" aria-haspopup="dialog">
+        <img id="homeCatAvatar" src="./assets/cat-idle-game.png" alt="" /><span data-i18n="myCats">我的猫猫</span><span id="catOwnedCount" class="cat-owned-count">1/2</span>
+      </button>
       <div class="home-mode-actions" hidden><button id="levelBtn" class="candy-image-button" type="button"><img src="./assets/level-candy-button-game.png" alt="" /><span data-i18n="levelMode">关卡挑战</span></button><span class="home-mode-tag" data-i18n="levelHomeHint">五关甜点旅程 · 收集星星</span></div>
       <div id="homeTapActions" class="tap-actions home-tap-actions" hidden>
         <button id="leaderboardBtn" class="home-service-btn" type="button" aria-label="排行榜" data-i18n-aria="leaderboard" hidden>
@@ -129,6 +132,20 @@
         <p class="level-star-help" data-i18n="levelStarShort">通关 ★ · 技巧 ★ · 不复活 ★</p>
       </div>
     </div>
+    <div id="catPanel" class="overlay home-settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="catPanelTitle">
+      <div class="home-settings-card cat-collection-card">
+        <button id="closeCatsBtn" class="home-settings-close" type="button" aria-label="关闭" data-i18n-aria="closeCats">×</button>
+        <h2 id="catPanelTitle" data-i18n="myCats">我的猫猫</h2>
+        <div class="cat-preview-stage"><img id="catPreview" src="./assets/cat-idle-game.png" alt="" /></div>
+        <h3 id="catPreviewName"></h3><span id="catPreviewState" class="cat-state"></span>
+        <p id="catRequirement" class="cat-requirement"></p>
+        <progress id="catUnlockProgress" max="100" value="0" aria-label="单局最深层数" data-i18n-aria="catProgressLabel"></progress>
+        <span id="catProgressText" class="cat-progress-text"></span>
+        <div id="catList" class="cat-list" aria-label="猫咪角色" data-i18n-aria="catCharacter"></div>
+        <button id="useCatBtn" class="home-settings-done" type="button"></button>
+      </div>
+    </div>
+    <div id="catUnlockNotice" class="cat-unlock-notice" role="status" aria-live="polite" hidden></div>
     <div id="settingsPanel" class="overlay home-settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <div class="home-settings-card">
         <button id="closeSettingsBtn" class="home-settings-close" type="button" aria-label="关闭设置" data-i18n-aria="closeSettings">×</button>
@@ -143,7 +160,6 @@
             <li><b class="energy-help" data-i18n="powerupEnergy">活力布丁</b><span data-i18n="powerupEnergyHint">补充3次弹跳，满了就换成奖励分数。</span></li>
           </ul>
         </div>
-        <label class="home-language-setting"><span data-i18n="catCharacter">猫咪角色</span><select id="characterSelect" aria-label="猫咪角色 / Cat character"><option value="round" data-i18n="catRound">圆球毛绒猫</option><option value="classic" data-i18n="catClassic">经典橘猫</option></select></label>
         <label class="home-language-setting"><span data-i18n="language">语言</span><select id="languageSelect" aria-label="Language / 语言"><option value="zh">简体中文</option><option value="en">English</option></select></label>
         <label class="home-motion-setting"><span data-i18n="homeMotion">首页动画</span><input id="homeMotionToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
         <label class="home-motion-setting"><span data-i18n="sound">游戏音效</span><input id="soundToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
@@ -153,13 +169,13 @@
 
     <div id="loading" class="overlay loading">
       <div class="loader-card">
-        <img class="loader-cat" src="./assets/cats/round/cat-idle-game.png" alt="" />
+        <img class="loader-cat" src="./assets/cat-idle-game.png" alt="" />
         <h1 data-i18n="title">猫猫果冻塔</h1>
         <p data-i18n="loading">正在进入果冻乐园……</p>
       </div>
     </div>
   </main>
 
-  <script type="module" src="./boot.bundle.js?v=3e8204c61fb4"></script>
+  <script type="module" src="./boot.bundle.js?v=c81030fbd588"></script>
 </body>
 </html>
