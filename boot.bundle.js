@@ -1,4 +1,5 @@
-import { applyTranslations, t } from './i18n.mjs?v=3d454fe6ac63';
+/* cat-cookie-tower preview | source 9f13ee8e | web 3e8204c61fb4 */
+import { applyTranslations, t } from './i18n.mjs?v=3e8204c61fb4';
 
 applyTranslations();
 const loadingEl = document.getElementById('loading');
@@ -77,7 +78,7 @@ const startupTimeout = setTimeout(() => {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('cat-tower/main.js');
+  await import('./game.bundle.js?v=3e8204c61fb4');
 } catch (err) {
   console.error(err);
   showBootError(err);

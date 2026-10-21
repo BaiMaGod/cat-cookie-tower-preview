@@ -2,6 +2,16 @@ const STORAGE_KEY = 'cat-tower.language.v1';
 
 const STRINGS = {
   zh: {
+    catCharacter: '猫咪角色', catRound: '圆球毛绒猫', catClassic: '经典橘猫',
+    levelSuccessKicker: '甜 蜜 闯 关 成 功', levelBook: '甜点挑战册', levelHomeHint: '五关甜点旅程 · 收集星星', levelStarShort: '通关 ★ · 技巧 ★ · 不复活 ★', levelLocked: '待解锁',
+    levelMode: '关卡挑战', endlessHint: '下方按钮：无尽挑战', chooseLevel: '选择关卡',
+    levelName1: '奶油初旅', levelName2: '草莓转角', levelName3: '一口五层', levelName4: '泡泡护航', levelName5: '焦糖冲刺',
+    levelGoal_bounce: '技巧目标：弹跳不超过 {count} 次', levelGoal_combo: '技巧目标：从缺口连续下落 {count} 层',
+    levelGoal_shield: '技巧目标：拾取泡泡盾', levelGoal_burst: '技巧目标：拾取暴走爪',
+    levelSummary: '已收集 {count} / {total} 颗星', continueLevel: '继续第 {count} 关', levelNumber: '第 {count} 关',
+    levelStarHelp: '到达终点获得一星；完成技巧目标获得二星；再加上不复活获得三星。',
+    nextLevel: '下一关', levelRetry: '重试本关', levelNoRevive: '未复活可获得三星',
+    levelClear: '甜点到手，通关啦！', levelGroupClear: '第 1 组挑战完成！', levelClearText: '猫猫稳稳落盘啦！可以继续挑战，也可以重玩补齐星星。',
     revive: '看广告复活', adLoading: '广告加载中…', adCancelled: '看完广告才能复活哦',
     adFailed: '广告暂不可用，请稍后重试', adUnavailable: '当前平台暂不支持广告复活',
     title: '猫猫果冻塔', labTitle: '果冻材质小样 · 猫猫果冻塔',
@@ -58,6 +68,16 @@ const STRINGS = {
     labNote: '当前展示分块压缩回弹。局部凹陷与毒果冻包裹将在材质确定后继续细化。',
   },
   en: {
+    catCharacter: 'Cat character', catRound: 'Round fluffy cat', catClassic: 'Classic tabby',
+    levelSuccessKicker: 'SWEET VICTORY', levelBook: 'Sweet adventure', levelHomeHint: 'Five sweet challenges · Collect stars', levelStarShort: 'Finish ★ · Skill ★ · No revive ★', levelLocked: 'Locked',
+    levelMode: 'Level challenge', endlessHint: 'Button below: Endless challenge', chooseLevel: 'Choose level',
+    levelName1: 'Cream trail', levelName2: 'Strawberry turns', levelName3: 'Five in a row', levelName4: 'Bubble escort', levelName5: 'Caramel rush',
+    levelGoal_bounce: 'Goal: Use at most {count} bounces', levelGoal_combo: 'Goal: Fall through {count} gaps in a row',
+    levelGoal_shield: 'Goal: Collect a bubble shield', levelGoal_burst: 'Goal: Collect a burst paw',
+    levelSummary: '{count} / {total} stars collected', continueLevel: 'Continue level {count}', levelNumber: 'Level {count}',
+    levelStarHelp: 'Finish for one star; complete the skill goal for two; also avoid reviving for three.',
+    nextLevel: 'Next level', levelRetry: 'Retry level', levelNoRevive: 'Avoid reviving for three stars',
+    levelClear: 'Sweet finish!', levelGroupClear: 'First group complete!', levelClearText: 'A happy landing! Keep going or replay to earn more stars.',
     revive: 'Watch Ad to Revive', adLoading: 'Loading ad…', adCancelled: 'Finish the ad to revive',
     adFailed: 'Ad unavailable. Please retry later.', adUnavailable: 'Ad revival is unavailable',
     title: 'Jelly Cat Tower', labTitle: 'Jelly Lab · Jelly Cat Tower',
@@ -140,7 +160,7 @@ export function applyTranslations() {
   for (const el of document.querySelectorAll('[data-i18n-alt]')) el.alt = t(el.dataset.i18nAlt);
   for (const el of document.querySelectorAll('[data-i18n-image]')) {
     const prefix = el.dataset.i18nImagePrefix ?? 'home-';
-    el.src = `./assets/${prefix}${el.dataset.i18nImage}${locale === 'en' ? '-en' : ''}.png`;
+    el.src = `./assets/${prefix}${el.dataset.i18nImage}${locale === 'en' ? '-en' : ''}-game.png`;
   }
   const language = document.getElementById('languageSelect');
   if (language) language.value = locale;

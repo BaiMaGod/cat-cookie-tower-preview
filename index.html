@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#8ddcff" />
   <title>猫猫果冻塔</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./app.css?v=3d454fe6ac63" />
+  <link rel="stylesheet" href="./app.css?v=3e8204c61fb4" />
 </head>
 <body>
   <main id="phoneFrame" class="phone-frame at-home">
@@ -40,6 +40,11 @@
     </div>
 
     <div id="combo" class="combo">连吃 ×2</div>
+    <div id="levelObjective" class="level-objective" hidden>
+      <img class="level-hud-icon" src="./assets/ui-depth-game.png" alt="" />
+      <div class="level-hud-copy"><div class="level-hud-heading"><strong id="levelHudTitle"></strong><span id="levelHudCount"></span></div>
+      <div class="level-progress-track"><span id="levelProgressFill"></span></div><small id="levelHudGoal"></small></div>
+    </div>
     <div id="toast" class="toast">
       <div class="gesture-badge" aria-hidden="true">
         <svg viewBox="0 0 64 64"><path class="gesture-arrows" d="M8 21h13m-8-5-5 5 5 5m43-5H43m8-5 5 5-5 5" />
@@ -54,7 +59,7 @@
       <div class="result-layout">
         <div class="card result-card">
           <div class="result-content">
-            <img class="result-cat" src="./assets/cat-fail-game.png" alt="" />
+            <img class="result-cat" src="./assets/cats/round/cat-fail-game.png" alt="" />
             <div id="deathEmoji" class="death-emoji" hidden>😿</div>
             <span class="result-kicker" data-i18n="resultKicker">本 次 冒 险 结 束</span>
             <h1 id="deathTitle">没力气啦！</h1>
@@ -65,6 +70,9 @@
               <div><span data-i18n="resultScore">得分</span><strong id="finalScore">0</strong></div>
             </div>
             <p id="shareMomentSummary" class="share-moment-summary" hidden></p>
+            <p id="levelResult" class="level-result" hidden></p>
+            <button id="nextLevelBtn" class="level-next" type="button" data-i18n="nextLevel" hidden>下一关</button>
+            <button id="resultLevelsBtn" class="result-home-btn" type="button" data-i18n="chooseLevel" hidden>选择关卡</button>
             <div id="tapActions" class="tap-actions" hidden>
               <button id="shareBtn" class="tap-action-btn" type="button" hidden>📣 <span data-i18n="share">分享</span></button>
             </div>
@@ -74,7 +82,7 @@
         </div>
         <div id="reviveAction" class="revive-action" hidden>
           <button id="reviveBtn" class="revive-btn" type="button" hidden aria-label="看广告复活" data-i18n-aria="revive" aria-describedby="adStatus">
-            <img src="./assets/result-revive-candy.png" data-i18n-image="revive-candy" data-i18n-image-prefix="result-" alt="" />
+            <img src="./assets/result-revive-candy-game.png" data-i18n-image="revive-candy" data-i18n-image-prefix="result-" alt="" />
           </button>
           <p id="adStatus" class="ad-status" role="status" aria-live="polite"></p>
         </div>
@@ -82,9 +90,9 @@
     </div>
 
     <section id="homeScreen" class="home-screen" aria-label="猫猫果冻塔首页" data-i18n-aria="homeAria">
-      <h1 class="home-title"><img src="./assets/home-title.png" data-i18n-image="title" data-i18n-alt="homeTitleAlt" alt="猫猫果冻塔，越掉越甜，越深越惊喜" /></h1>
+      <h1 class="home-title"><img src="./assets/home-title-game.png" data-i18n-image="title" data-i18n-alt="homeTitleAlt" alt="猫猫果冻塔，越掉越甜，越深越惊喜" /></h1>
       <button id="settingsBtn" class="home-settings-btn" type="button" aria-label="打开设置" data-i18n-aria="openSettings">
-        <img src="./assets/home-settings.png" data-i18n-image="settings" alt="" />
+        <img src="./assets/home-settings-game.png" data-i18n-image="settings" alt="" />
       </button>
       <div class="home-record">
         <span class="home-record-title" data-i18n="bestRecord">历史最高记录</span>
@@ -100,19 +108,27 @@
         </div>
       </div>
       <button id="startBtn" class="home-start-btn" type="button" aria-label="开始游戏" data-i18n-aria="start">
-        <img src="./assets/home-start.png" data-i18n-image="start" alt="" />
+        <img src="./assets/home-start-game.png" data-i18n-image="start" alt="" />
       </button>
+      <div class="home-mode-actions" hidden><button id="levelBtn" class="candy-image-button" type="button"><img src="./assets/level-candy-button-game.png" alt="" /><span data-i18n="levelMode">关卡挑战</span></button><span class="home-mode-tag" data-i18n="levelHomeHint">五关甜点旅程 · 收集星星</span></div>
       <div id="homeTapActions" class="tap-actions home-tap-actions" hidden>
         <button id="leaderboardBtn" class="home-service-btn" type="button" aria-label="排行榜" data-i18n-aria="leaderboard" hidden>
-          <img src="./assets/home-leaderboard-candy.png" data-i18n-image="leaderboard-candy" alt="" />
+          <img src="./assets/home-leaderboard-candy-game.png" data-i18n-image="leaderboard-candy" alt="" />
         </button>
         <button id="achievementsBtn" class="home-service-btn" type="button" aria-label="成就" data-i18n-aria="achievements" hidden>
-          <img src="./assets/home-achievements-candy.png" data-i18n-image="achievements-candy" alt="" />
+          <img src="./assets/home-achievements-candy-game.png" data-i18n-image="achievements-candy" alt="" />
         </button>
         <p id="homeTapStatus" class="home-tap-status" role="status" aria-live="polite"></p>
       </div>
     </section>
 
+    <div id="levelPanel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="levelTitle">
+      <div class="level-card"><button id="closeLevelsBtn" class="level-close" type="button" aria-label="关闭 / Close">×</button>
+        <header class="level-book-header"><span class="level-book-kicker" data-i18n="levelBook">甜点挑战册</span><h2 id="levelTitle" data-i18n="levelMode">关卡挑战</h2><div class="level-total"><img src="./assets/star-game.png" alt="" /><span id="levelSummary"></span></div></header>
+        <div id="levelList"></div><button id="continueLevelBtn" class="candy-image-button" type="button"><img src="./assets/level-candy-button-game.png" alt="" /><span></span></button>
+        <p class="level-star-help" data-i18n="levelStarShort">通关 ★ · 技巧 ★ · 不复活 ★</p>
+      </div>
+    </div>
     <div id="settingsPanel" class="overlay home-settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <div class="home-settings-card">
         <button id="closeSettingsBtn" class="home-settings-close" type="button" aria-label="关闭设置" data-i18n-aria="closeSettings">×</button>
@@ -127,6 +143,7 @@
             <li><b class="energy-help" data-i18n="powerupEnergy">活力布丁</b><span data-i18n="powerupEnergyHint">补充3次弹跳，满了就换成奖励分数。</span></li>
           </ul>
         </div>
+        <label class="home-language-setting"><span data-i18n="catCharacter">猫咪角色</span><select id="characterSelect" aria-label="猫咪角色 / Cat character"><option value="round" data-i18n="catRound">圆球毛绒猫</option><option value="classic" data-i18n="catClassic">经典橘猫</option></select></label>
         <label class="home-language-setting"><span data-i18n="language">语言</span><select id="languageSelect" aria-label="Language / 语言"><option value="zh">简体中文</option><option value="en">English</option></select></label>
         <label class="home-motion-setting"><span data-i18n="homeMotion">首页动画</span><input id="homeMotionToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
         <label class="home-motion-setting"><span data-i18n="sound">游戏音效</span><input id="soundToggle" type="checkbox" checked /><span class="home-motion-switch" aria-hidden="true"></span></label>
@@ -136,14 +153,13 @@
 
     <div id="loading" class="overlay loading">
       <div class="loader-card">
-        <img class="loader-cat" src="./assets/cat-idle-game.png" alt="" />
+        <img class="loader-cat" src="./assets/cats/round/cat-idle-game.png" alt="" />
         <h1 data-i18n="title">猫猫果冻塔</h1>
         <p data-i18n="loading">正在进入果冻乐园……</p>
       </div>
     </div>
   </main>
 
-  <script src="./game.bundle.js?v=3d454fe6ac63"></script>
-  <script type="module" src="./boot.bundle.js?v=3d454fe6ac63"></script>
+  <script type="module" src="./boot.bundle.js?v=3e8204c61fb4"></script>
 </body>
 </html>
