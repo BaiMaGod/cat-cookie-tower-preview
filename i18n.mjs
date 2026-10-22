@@ -6,6 +6,7 @@ const STRINGS = {
     catUse: '使用这只', catUnlockGoal: '单局下落达到 100 层即可获得', catDefault: '初始拥有，陪你开启冒险',
     catProgressLabel: '单局最深层数', catProgress: '单局最深 {count} / 100 层', catUnlockAction: '下落 100 层解锁',
     catUnlocked: '解锁圆球毛绒猫！回到「我的猫猫」即可使用', catOwnedHint: '已达成单局下落 100 层，永久拥有',
+    catCollectionCount: '已拥有 {count} / {total}',
     catCharacter: '猫咪角色', catRound: '圆球毛绒猫', catClassic: '经典橘猫',
     levelSuccessKicker: '甜 蜜 闯 关 成 功', levelBook: '甜点挑战册', levelHomeHint: '五关甜点旅程 · 收集星星', levelStarShort: '通关 ★ · 技巧 ★ · 不复活 ★', levelLocked: '待解锁',
     levelMode: '关卡挑战', endlessHint: '下方按钮：无尽挑战', chooseLevel: '选择关卡',
@@ -72,6 +73,7 @@ const STRINGS = {
     labNote: '当前展示分块压缩回弹。局部凹陷与毒果冻包裹将在材质确定后继续细化。',
   },
   en: {
+    catCollectionCount: '{count} / {total} owned',
     myCats: 'My Cats', closeCats: 'Close My Cats', catUsing: 'In use', catOwned: 'Owned', catLocked: 'Locked',
     catUse: 'Use this cat', catUnlockGoal: 'Drop 100 levels in a single run to unlock', catDefault: 'Your first adventure companion',
     catProgressLabel: 'Deepest single run', catProgress: 'Single-run best: {count} / 100', catUnlockAction: 'Drop 100 levels to unlock',
@@ -185,3 +187,4 @@ export function setLocale(next) {
   }
   applyTranslations();
 }
+

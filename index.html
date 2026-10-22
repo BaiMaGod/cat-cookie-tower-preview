@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#8ddcff" />
   <title>猫猫果冻塔</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./app.css?v=c81030fbd588" />
+  <link rel="stylesheet" href="./app.css?v=011966fc2549" />
 </head>
 <body>
   <main id="phoneFrame" class="phone-frame at-home">
@@ -111,7 +111,7 @@
         <img src="./assets/home-start-game.png" data-i18n-image="start" alt="" />
       </button>
       <button id="myCatsBtn" class="home-cats-btn" type="button" aria-haspopup="dialog">
-        <img id="homeCatAvatar" src="./assets/cat-idle-game.png" alt="" /><span data-i18n="myCats">我的猫猫</span><span id="catOwnedCount" class="cat-owned-count">1/2</span>
+        <img id="homeCatAvatar" src="./assets/cat-idle-game.png" alt="" /><span class="home-cats-label" data-i18n="myCats">我的猫猫</span><span id="catOwnedCount" class="cat-owned-count">1/2</span>
       </button>
       <div class="home-mode-actions" hidden><button id="levelBtn" class="candy-image-button" type="button"><img src="./assets/level-candy-button-game.png" alt="" /><span data-i18n="levelMode">关卡挑战</span></button><span class="home-mode-tag" data-i18n="levelHomeHint">五关甜点旅程 · 收集星星</span></div>
       <div id="homeTapActions" class="tap-actions home-tap-actions" hidden>
@@ -135,12 +135,21 @@
     <div id="catPanel" class="overlay home-settings-panel hidden" role="dialog" aria-modal="true" aria-labelledby="catPanelTitle">
       <div class="home-settings-card cat-collection-card">
         <button id="closeCatsBtn" class="home-settings-close" type="button" aria-label="关闭" data-i18n-aria="closeCats">×</button>
-        <h2 id="catPanelTitle" data-i18n="myCats">我的猫猫</h2>
-        <div class="cat-preview-stage"><img id="catPreview" src="./assets/cat-idle-game.png" alt="" /></div>
-        <h3 id="catPreviewName"></h3><span id="catPreviewState" class="cat-state"></span>
-        <p id="catRequirement" class="cat-requirement"></p>
-        <progress id="catUnlockProgress" max="100" value="0" aria-label="单局最深层数" data-i18n-aria="catProgressLabel"></progress>
-        <span id="catProgressText" class="cat-progress-text"></span>
+        <header class="cat-collection-header">
+          <h2 id="catPanelTitle" data-i18n="myCats">我的猫猫</h2>
+          <span id="catCollectionCount" class="cat-collection-count"></span>
+        </header>
+        <div class="cat-preview-stage" aria-hidden="true">
+          <img class="cat-stage-star star-left" src="./assets/star-game.png" alt="" />
+          <img id="catPreview" src="./assets/cat-idle-game.png" alt="" />
+          <img class="cat-stage-star star-right" src="./assets/star-game.png" alt="" />
+        </div>
+        <div class="cat-preview-heading"><h3 id="catPreviewName"></h3><span id="catPreviewState" class="cat-state"></span></div>
+        <div class="cat-unlock-info" aria-live="polite">
+          <p id="catRequirement" class="cat-requirement"></p>
+          <progress id="catUnlockProgress" max="100" value="0" aria-label="单局最深层数" data-i18n-aria="catProgressLabel"></progress>
+          <span id="catProgressText" class="cat-progress-text"></span>
+        </div>
         <div id="catList" class="cat-list" aria-label="猫咪角色" data-i18n-aria="catCharacter"></div>
         <button id="useCatBtn" class="home-settings-done" type="button"></button>
       </div>
@@ -176,6 +185,7 @@
     </div>
   </main>
 
-  <script type="module" src="./boot.bundle.js?v=c81030fbd588"></script>
+  <script type="module" src="./boot.bundle.js?v=011966fc2549"></script>
 </body>
 </html>
+

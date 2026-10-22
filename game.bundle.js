@@ -1,6 +1,6 @@
-/* cat-cookie-tower preview | source fc4e6bce | web c81030fbd588 */
+/* cat-cookie-tower preview | source e848d677 | web 011966fc2549 */
 
-// src/drag-input.mjs?v=c81030fbd588
+// src/drag-input.mjs?v=011966fc2549
 function bindDragInput(element, { onStart, onMove, onEnd, runtime = globalThis, diagnostics } = {}) {
   const doc = element.ownerDocument || runtime.document;
   const pointer = typeof runtime.PointerEvent === "function";
@@ -93,7 +93,7 @@ function bindDragInput(element, { onStart, onMove, onEnd, runtime = globalThis, 
   } };
 }
 
-// src/texture-loader.mjs?v=c81030fbd588
+// src/texture-loader.mjs?v=011966fc2549
 function loadTextureWithRetry(THREE6, loader, url, { timeoutMs = 12e3, retries = 1, diagnostics } = {}) {
   const texture = new THREE6.Texture();
   const finish = diagnostics?.assetStart(url);
@@ -145,7 +145,7 @@ function loadTextureWithRetry(THREE6, loader, url, { timeoutMs = 12e3, retries =
   return { texture, ready };
 }
 
-// src/cat-feedback.mjs?v=c81030fbd588
+// src/cat-feedback.mjs?v=011966fc2549
 function catScaleForJumps(jumps, maxJumps) {
   return 0.68 + 0.3 * Math.max(0, Math.min(1, jumps / maxJumps));
 }
@@ -155,14 +155,14 @@ function followCatScale(current, target, dt) {
   return target + (current - target) * Math.exp(-rate * dt);
 }
 
-// src/ad-config.mjs?v=c81030fbd588
+// src/ad-config.mjs?v=011966fc2549
 var AD_CONFIG = Object.freeze({
   timeoutMs: 12e4,
   wechat: Object.freeze({ enabled: true, adUnitId: "" }),
   "taptap-h5": Object.freeze({ enabled: true, adUnitId: "1054324" })
 });
 
-// src/ad-video.mjs?v=c81030fbd588
+// src/ad-video.mjs?v=011966fc2549
 function createVideoAdapter(api, config) {
   let ad = null, pending = null, destroyed = false;
   const supported = () => !destroyed && config.enabled === true && typeof config.adUnitId === "string" && config.adUnitId.trim().length > 0 && typeof api?.createRewardedVideoAd === "function";
@@ -238,19 +238,19 @@ function createVideoAdapter(api, config) {
   };
 }
 
-// src/ad-wechat.mjs?v=c81030fbd588
+// src/ad-wechat.mjs?v=011966fc2549
 function createWechatAdAdapter(wx, config) {
   return createVideoAdapter(wx, config);
 }
 
-// src/ad-taptap-h5.mjs?v=c81030fbd588
+// src/ad-taptap-h5.mjs?v=011966fc2549
 function createTaptapH5AdAdapter(tap, config) {
   const adapter = createVideoAdapter(tap, config);
   void adapter.preload();
   return adapter;
 }
 
-// src/ads.mjs?v=c81030fbd588
+// src/ads.mjs?v=011966fc2549
 function createAdService({ runtime = globalThis, platform, api, config = runtime.__CAT_AD_CONFIG__ } = {}) {
   const detected = platform ?? (runtime.__CAT_PLATFORM__ === "taptap-h5" || runtime.document && runtime.tap ? "taptap-h5" : !runtime.document && runtime.wx && !runtime.tt ? "wechat" : "unsupported");
   const settings = {
@@ -267,7 +267,7 @@ function createAdService({ runtime = globalThis, platform, api, config = runtime
   };
 }
 
-// src/tap-services.mjs?v=c81030fbd588
+// src/tap-services.mjs?v=011966fc2549
 var ARCHIVE_NAME = "cat-tower-best-record";
 var LEADERBOARDS = {
   score: "so2knc1s4zz28ep6n0",
@@ -641,7 +641,7 @@ function createTapServices({
   return { supports, beginRun, getShareMoment, init, notifyProgress, onGameOver, openLeaderboard, showAchievements, share, restoreRecord };
 }
 
-// src/tapdb-client.mjs?v=c81030fbd588
+// src/tapdb-client.mjs?v=011966fc2549
 var TAPDB_ENDPOINT = "https://e.tapdb.net/v2/event";
 var DEVICE_KEY = "cat-tower.tapdb-device.v1";
 function getOS(runtime) {
@@ -732,14 +732,14 @@ function createTapDbClient({ runtime = globalThis, config = {}, now = () => Date
   } };
 }
 
-// src/tapdb-config.mjs?v=c81030fbd588
+// src/tapdb-config.mjs?v=011966fc2549
 var TAPDB_CONFIG = Object.freeze({
   clientId: "e7hqimu2rksanhucsa",
   appVersion: "1.0.0",
   channel: "cat-tower-h5"
 });
 
-// src/game-analytics.mjs?v=c81030fbd588
+// src/game-analytics.mjs?v=011966fc2549
 var ANALYTICS_EVENTS = Object.freeze({
   game_start: ["entry"],
   game_over: ["score", "depth", "best_combo", "reason"],
@@ -809,7 +809,7 @@ function createGameAnalytics({ runtime = globalThis, maxPending = 100, config = 
   } };
 }
 
-// src/revive.mjs?v=c81030fbd588
+// src/revive.mjs?v=011966fc2549
 function createReviveController({ ads: ads2, canRevive, restore, onChange = () => {
 } }) {
   let busy = false, status = "", generation = 0;
@@ -853,7 +853,7 @@ function createReviveController({ ads: ads2, canRevive, restore, onChange = () =
   return controller;
 }
 
-// src/eat-effects.js?v=c81030fbd588
+// src/eat-effects.js?v=011966fc2549
 function createEatEffects(THREE6, scene2, towerRoot2, CONFIG, materials, getMouthWorldPosition2, createCanvas, onEat = () => {
 }) {
   const TAU4 = Math.PI * 2;
@@ -1079,14 +1079,14 @@ function createBurstTexture(THREE6, createCanvas) {
   return texture;
 }
 
-// src/jelly-motion.mjs?v=c81030fbd588
+// src/jelly-motion.mjs?v=011966fc2549
 var JELLY_CONTACT_TIME = Math.PI / 20;
 function jellyCompression(time, strength) {
   if (time < 0 || time >= 0.9) return 0;
   return strength * Math.exp(-5.5 * time) * Math.sin(20 * time);
 }
 
-// src/game-config.mjs?v=c81030fbd588
+// src/game-config.mjs?v=011966fc2549
 var GAME_CONFIG = Object.freeze({
   initialJumps: 5,
   maxJumps: 5,
@@ -1109,7 +1109,7 @@ var GAME_CONFIG = Object.freeze({
   smashBounceVelocity: 4.15
 });
 
-// src/camera-framing.mjs?v=c81030fbd588
+// src/camera-framing.mjs?v=011966fc2549
 var cameraDistance = Math.hypot(8.2, 20);
 var cameraUpY = 20 / cameraDistance;
 var cameraUpZ = -8.2 / cameraDistance;
@@ -1125,7 +1125,7 @@ function followGameplayCamera(focusY, targetY, catY, previousCatY) {
   return Math.max(focusY + descent, Math.min(focusY, targetY));
 }
 
-// src/i18n.mjs?v=c81030fbd588
+// src/i18n.mjs?v=011966fc2549
 var STORAGE_KEY = "cat-tower.language.v1";
 var STRINGS = {
   zh: {
@@ -1142,6 +1142,7 @@ var STRINGS = {
     catUnlockAction: "下落 100 层解锁",
     catUnlocked: "解锁圆球毛绒猫！回到「我的猫猫」即可使用",
     catOwnedHint: "已达成单局下落 100 层，永久拥有",
+    catCollectionCount: "已拥有 {count} / {total}",
     catCharacter: "猫咪角色",
     catRound: "圆球毛绒猫",
     catClassic: "经典橘猫",
@@ -1291,6 +1292,7 @@ var STRINGS = {
     labNote: "当前展示分块压缩回弹。局部凹陷与毒果冻包裹将在材质确定后继续细化。"
   },
   en: {
+    catCollectionCount: "{count} / {total} owned",
     myCats: "My Cats",
     closeCats: "Close My Cats",
     catUsing: "In use",
@@ -1498,7 +1500,7 @@ function setLocale(next) {
   applyTranslations();
 }
 
-// src/logic.mjs?v=c81030fbd588
+// src/logic.mjs?v=011966fc2549
 var TAU = Math.PI * 2;
 function normalizeAngle(a) {
   a %= TAU;
@@ -1705,7 +1707,7 @@ var LayerGenerator = class {
   }
 };
 
-// src/canvas-paths.mjs?v=c81030fbd588
+// src/canvas-paths.mjs?v=011966fc2549
 var reported = /* @__PURE__ */ new Set();
 function ellipsePath(ctx, x, y, rx, ry, rotation, start, end, anticlockwise = false) {
   const native = typeof ctx.ellipse === "function";
@@ -1726,7 +1728,7 @@ function ellipsePath(ctx, x, y, rx, ry, rotation, start, end, anticlockwise = fa
   ctx.restore();
 }
 
-// src/classic-material.js?v=c81030fbd588
+// src/classic-material.js?v=011966fc2549
 var THREE = globalThis.__THREE__;
 function createClassicMaterial(danger = false) {
   return new THREE.ShaderMaterial({
@@ -1805,7 +1807,7 @@ function createClassicMaterial(danger = false) {
   });
 }
 
-// src/candy-jelly-material.js?v=c81030fbd588
+// src/candy-jelly-material.js?v=011966fc2549
 var THREE2 = globalThis.__THREE__;
 function createCandyJellyMaterial(config, danger = false) {
   const material = new THREE2.MeshPhysicalMaterial({
@@ -1892,7 +1894,7 @@ function createAirPocketMaterial(danger = false) {
   });
 }
 
-// src/platform-materials.js?v=c81030fbd588
+// src/platform-materials.js?v=011966fc2549
 var THREE3 = globalThis.__THREE__;
 var STORAGE_KEY2 = "cat-tower.platform-material.v1";
 var FIXED_JELLY = globalThis.__CAT_FIXED_JELLY__ === true;
@@ -2005,7 +2007,7 @@ function createPlatformMaterials(config) {
   };
 }
 
-// src/game-assets.mjs?v=c81030fbd588
+// src/game-assets.mjs?v=011966fc2549
 var GAME_ASSETS = Object.freeze({
   levelButton: "./assets/level-candy-button-game.png",
   levelVictory: "./assets/level-victory-cat-game.png",
@@ -2038,7 +2040,7 @@ var CAT_SOURCES = Object.freeze({
   fail: GAME_ASSETS.fail
 });
 
-// src/visuals.js?v=c81030fbd588
+// src/visuals.js?v=011966fc2549
 var THREE4 = globalThis.__THREE__;
 var TAU2 = Math.PI * 2;
 function canvasTexture(width, height, paint) {
@@ -2465,7 +2467,7 @@ function setVisibleTowerLayers(platforms, columns, focusY, reach) {
   }
 }
 
-// src/world-background.js?v=c81030fbd588
+// src/world-background.js?v=011966fc2549
 function createWorldBackground(scene2, loadTexture) {
   const texture = loadTexture(GAME_ASSETS.world);
   scene2.background = texture;
@@ -2481,7 +2483,7 @@ function createWorldBackground(scene2, loadTexture) {
   };
 }
 
-// src/material-switcher.js?v=c81030fbd588
+// src/material-switcher.js?v=011966fc2549
 var presetName = (id) => t(`preset${id[0].toUpperCase()}${id.slice(1)}`);
 function mountMaterialSwitcher(art2, root, parent) {
   if (globalThis.__CAT_FIXED_JELLY__ === true) return;
@@ -2532,7 +2534,7 @@ function mountMaterialSwitcher(art2, root, parent) {
   parent.appendChild(panel);
 }
 
-// src/cat-characters.mjs?v=c81030fbd588
+// src/cat-characters.mjs?v=011966fc2549
 var CAT_CHOICE_KEY = "cat-tower.character.v1";
 var CAT_COLLECTION_KEY = "cat-tower.cat-collection.v1";
 var ROUND_UNLOCK_DEPTH = 100;
@@ -2638,7 +2640,7 @@ function catMouthUV(id) {
   return id === "round" ? { x: 0.515, y: 0.74 } : null;
 }
 
-// src/game-sounds.mjs?v=c81030fbd588
+// src/game-sounds.mjs?v=011966fc2549
 var GAME_SOUNDS = Object.freeze({
   ...Object.fromEntries(["combo", "low", "hazard", "starved"].map((name) => [name, `./assets/sfx/${name}.wav`])),
   jump: "./assets/sfx/jump.wav",
@@ -2731,7 +2733,7 @@ function createWebSounds() {
   };
 }
 
-// src/powerups.mjs?v=c81030fbd588
+// src/powerups.mjs?v=011966fc2549
 var POWERUP_TYPES = Object.freeze(["burst", "shield", "energy"]);
 var POWERUP_CONFIG = Object.freeze({
   duration: 3,
@@ -2857,7 +2859,7 @@ function powerupInReach(pickup, localAngle, prevY, currentY, layerTopY2) {
   return prevCenter >= pickupY - POWERUP_CONFIG.pickupVerticalRadius && currentCenter <= pickupY + POWERUP_CONFIG.pickupVerticalRadius;
 }
 
-// src/charged-cat-effect.js?v=c81030fbd588
+// src/charged-cat-effect.js?v=011966fc2549
 function createChargedCatEffect(THREE6, { texture, spriteMaterial, catSprite, glowMap }) {
   const group = new THREE6.Group();
   group.name = "charged-cat-energy";
@@ -3061,7 +3063,7 @@ function createChargedCatEffect(THREE6, { texture, spriteMaterial, catSprite, gl
   };
 }
 
-// src/powerup-art.js?v=c81030fbd588
+// src/powerup-art.js?v=011966fc2549
 var TAU3 = Math.PI * 2;
 function createPowerupArt(THREE6, createCanvas = () => document.createElement("canvas"), loadTexture) {
   const textures = [];
@@ -3288,7 +3290,7 @@ function createPowerupArt(THREE6, createCanvas = () => document.createElement("c
   };
 }
 
-// src/levels.mjs?v=c81030fbd588
+// src/levels.mjs?v=011966fc2549
 var LEVELS = Object.freeze([
   { id: 1, name: "奶油初旅", layers: 8, goal: "bounce", target: 3 },
   { id: 2, name: "草莓转角", layers: 12, goal: "bounce", target: 4 },
@@ -3652,7 +3654,11 @@ function renderCats() {
   const character = CAT_CHARACTERS[previewCatId];
   const owned = catCollection.owns(previewCatId), using = previewCatId === characterId;
   document.getElementById("homeCatAvatar").src = CAT_CHARACTERS[characterId].sources.idle;
-  document.getElementById("catOwnedCount").textContent = `${Object.keys(CAT_CHARACTERS).filter((id) => catCollection.owns(id)).length}/${Object.keys(CAT_CHARACTERS).length}`;
+  const ownedCount = Object.keys(CAT_CHARACTERS).filter((id) => catCollection.owns(id)).length;
+  const totalCount = Object.keys(CAT_CHARACTERS).length;
+  document.getElementById("catOwnedCount").textContent = `${ownedCount}/${totalCount}`;
+  document.getElementById("catCollectionCount").textContent = t("catCollectionCount", { count: ownedCount, total: totalCount });
+  catPanel.dataset.state = using ? "using" : owned ? "owned" : "locked";
   document.getElementById("catPreview").src = character.sources.idle;
   document.getElementById("catPreviewName").textContent = t(character.nameKey);
   document.getElementById("catPreviewState").textContent = t(using ? "catUsing" : owned ? "catOwned" : "catLocked");
