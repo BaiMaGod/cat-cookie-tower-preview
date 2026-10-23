@@ -1,0 +1,7 @@
+Cat Cookie Tower preview deployment marker
+Source repository: BaiMaGod/cat-cookie-tower
+Source commit: e848d677453e81fb3b11a8085ae31077ebfaed29
+Web assets version: 011966fc2549
+Requested redeploy: 2026-10-23
+
+This metadata file is not copied to the GitHub Pages site.
