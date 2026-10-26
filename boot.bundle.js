@@ -1,5 +1,5 @@
-/* cat-cookie-tower preview | source e848d677 | web 011966fc2549 */
-import { applyTranslations, t } from './i18n.mjs?v=011966fc2549';
+/* cat-cookie-tower preview | source f4f5759a | web 977c783ae02f */
+import { applyTranslations, t } from './i18n.mjs?v=977c783ae02f';
 
 applyTranslations();
 const loadingEl = document.getElementById('loading');
@@ -78,9 +78,10 @@ const startupTimeout = setTimeout(() => {
 
 try {
   globalThis.__THREE__ = await loadThree();
-  await import('./game.bundle.js?v=011966fc2549');
+  await import('./game.bundle.js?v=977c783ae02f');
 } catch (err) {
   console.error(err);
   showBootError(err);
 }
+
 
