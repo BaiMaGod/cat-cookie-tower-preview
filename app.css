@@ -624,15 +624,15 @@ html[lang="en"] .level-choice-copy strong { white-space:nowrap; overflow:hidden;
 /* Character collection — reuse the home candy artwork and warm cream palette. */
 .home-cats-btn {
   position:absolute; z-index:5; left:50%; transform:translateX(-50%);
-  bottom:2%; bottom:max(2%, env(safe-area-inset-bottom)); width:68%; aspect-ratio:3.2;
-  display:flex; align-items:center; justify-content:center; gap:6px; padding:0 12% 0 13%;
+  bottom:2%; bottom:max(2%, env(safe-area-inset-bottom)); width:58%; aspect-ratio:3.2;
+  display:flex; align-items:center; justify-content:center; gap:5px; padding:0 10% 0 11%;
   border:0; background:transparent url('./assets/level-candy-button-game.png') center / 100% 100% no-repeat;
   color:#fffdf0; font:inherit; font-weight:900; cursor:pointer; white-space:nowrap;
   filter:drop-shadow(0 4px 3px #a3426038); transition:transform .16s, filter .16s;
   -webkit-tap-highlight-color:transparent;
 }
-.home-cats-btn img { flex:none; width:44px; height:48px; object-fit:contain; filter:drop-shadow(0 2px 2px #9c3c5d55); }
-.home-cats-label { font-size:clamp(16px,4.6cqw,22px); text-shadow:0 2px 0 #a7404c,1px 0 #a7404c,-1px 0 #a7404c,0 -1px #a7404c; }
+.home-cats-btn img { flex:none; width:37px; height:41px; object-fit:contain; filter:drop-shadow(0 2px 2px #9c3c5d55); }
+.home-cats-label { font-size:clamp(14px,3.9cqw,19px); text-shadow:0 2px 0 #a7404c,1px 0 #a7404c,-1px 0 #a7404c,0 -1px #a7404c; }
 .cat-owned-count { flex:none; padding:3px 6px; border:1px solid #fff3dcaa; border-radius:20px; background:#ba375252; color:#fff6dc; font-size:11px; line-height:1.2; }
 .home-cats-btn:hover { filter:brightness(1.06) drop-shadow(0 4px 4px #a3426040); }
 .home-cats-btn:active { transform:translate(-50%,3px) scale(.98); }
@@ -716,7 +716,7 @@ html[lang="en"] .level-choice-copy strong { white-space:nowrap; overflow:hidden;
 .home-cats-btn:focus-visible { outline:3px solid #ab536f; outline-offset:4px; }
 .cat-unlock-notice { position:absolute; z-index:42; top:25%; left:8%; width:84%; padding:14px; border:2px solid #fff8e0; border-radius:20px; background:#fff0ccf5; box-shadow:0 5px 0 #d8a467; color:#92512e; font-size:15px; font-weight:800; text-align:center; pointer-events:none; }
 .cat-unlock-notice[hidden] { display:none; }
-:lang(en) .home-cats-label { font-size:clamp(15px,4.3cqw,20px); }
+:lang(en) .home-cats-label { font-size:clamp(13px,3.65cqw,17px); }
 :lang(en) .cat-collection-card h2 { left:28%; width:43%; font-size:6.7cqw; }
 :lang(en) .cat-collection-card h3 { font-size:3.6cqw; }
 :lang(en) .cat-choice strong { font-size:3.4cqw; }
